@@ -1,0 +1,59 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: httpbin-service
+    host: httpbin.org
+    path: /
+    port: 443
+    protocol: https
+    routes:
+      - name: httpbin-route
+        paths:
+          - /
+        strip_path: true
+
+plugins:
+  - name: kong-plugin-freeoidc
+    config:
+      issuer: $OIDC_ISSUER
+      client_id: $OIDC_CLIENT_ID
+      client_secret: $OIDC_CLIENT_SECRET
+      groups_claim: $OIDC_GROUPS_CLAIM
+      use_pkce: $OIDC_USE_PKCE
+      redirect_uri: http://localhost:8000/cb
+      logout_path: /logout
+      headers_from_claims:
+        x-oidc-email: email
+        x-oidc-sub: sub
+      redirect_unauthenticated: true
+      session_lifetime_seconds: 60
+      skip_already_auth: true
+      consumer_name: oidcuser
+      bearer_jwt_allowed_auds:
+        - $OIDC_CLIENT_ID
+  - name: acl
+    config:
+      allow: 
+        - cognito_users
+        - basicusers
+      always_use_authenticated_groups: true
+
+  - name: basic-auth
+    config:
+      anonymous: anonymous
+
+consumers:
+- username: john
+  basicauth_credentials:
+  - username: john
+    password: basic
+  acls:
+    - group: basicusers
+
+
+- username: anonymous
+  plugins:
+    - name: request-termination
+
+- username: oidcuser

@@ -1,0 +1,37 @@
+services:
+  # tests can connect via http proxy to "see" the http host names same as seen
+  # by kong and as present in OIDC discovery document. This allows redirects
+  # to work as expected.
+  squid:
+    image: ubuntu/squid:5.2-22.04_beta
+    ports:
+      - '3128:3128'
+
+  oidc:
+    image: ghcr.io/vdbulcke/oidc-server:v0.8.4
+    volumes:
+      - ./mock-config.yml:/app/config.yaml
+
+  httpbin:
+    image: 'kennethreitz/httpbin'
+
+  kong:
+    image: 'kong:3.8.0'
+    environment:
+      - KONG_DATABASE=off
+      - KONG_PLUGINS=bundled,kong-plugin-freeoidc
+      - KONG_PLUGINSERVER_NAMES=kong-plugin-freeoidc
+      - KONG_PLUGINSERVER_KONG_PLUGIN_FREEOIDC_QUERY_CMD=/usr/local/bin/kong-plugin-freeoidc -dump
+      - KONG_PLUGINSERVER_KONG_PLUGIN_FREEOIDC_START_CMD=/usr/local/bin/kong-plugin-freeoidc
+      - KONG_PROXY_LISTEN=0.0.0.0:80, 0.0.0.0:443 ssl
+      - KONG_ADMIN_LISTEN=0.0.0.0:8001, 0.0.0.0:8444 ssl
+      - KONG_STATUS_LISTEN=0.0.0.0:8100
+      - KONG_DECLARATIVE_CONFIG=/etc/kong/kong.yml
+      - KONG_LOG_LEVEL=debug
+      - KONG_PROXY_BUFFER_SIZE=128k
+      - KONG_NGINX_PROXY_LARGE_CLIENT_HEADER_BUFFERS=4 128k
+
+    volumes:
+      - ./kong.yml:/etc/kong/kong.yml
+      - ../kong-plugin-freeoidc:/usr/local/bin/kong-plugin-freeoidc
+

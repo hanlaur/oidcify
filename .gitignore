@@ -1,0 +1,6 @@
+dist/
+kong-plugin-freeoidc
+cover.html
+cover.out
+.vscode
+.idea
