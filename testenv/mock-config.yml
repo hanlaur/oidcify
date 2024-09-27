@@ -1,0 +1,24 @@
+client_id: client
+client_secret: secret
+
+issuer_base_url: http://oidc:5557
+
+supported_scopes: 
+- openid
+- profile
+- email
+
+pkce_challenge_methods:
+- S256
+
+mock_user:
+  sub: sub12345678
+  id_token_claims: 
+    groups:
+      - readers
+    dummy_int_claim: 223344
+
+  userinfo_claims:
+    name: User Name
+    email: user@mock.internal
+    email_verified: true

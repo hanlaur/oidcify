@@ -1,0 +1,26 @@
+
+linters:
+  enable-all: true
+  disable:
+    # Avoid deprecation warnings
+    - execinquery
+    - gomnd
+    - exportloopref
+    # Disabled for other reason
+    - tagliatelle
+    - gci
+    - gochecknoglobals
+    - err113
+    - exhaustruct
+    - depguard
+    - paralleltest
+    - cyclop
+    - funlen
+
+linters-settings:
+  lll:
+    line-length: 132
+
+issues:
+  exclude:
+    - Error return value of `kong.Log.*` is not checked

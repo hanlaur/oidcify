@@ -1,0 +1,107 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: httpbin-service
+    host: httpbin
+    path: /
+    port: 80
+    protocol: http
+    routes:
+      - name: httpbin-route
+        paths:
+          - /
+        strip_path: true
+        plugins:
+          - name: acl
+            config:
+              allow: 
+                - readers
+                - basicusers
+              always_use_authenticated_groups: true
+          - name: kong-plugin-freeoidc
+            config:
+              issuer: http://oidc:5557/oidc
+              client_id: client
+              client_secret: secret
+              redirect_uri: https://kong/cb
+              skip_already_auth: true
+              consumer_name: oidcuser
+              headers_from_claims:
+                x-oidc-email: email
+                x-oidc-email-verified: email_verified
+                x-oidc-sub: sub
+                x-oidc-pref-user: preferred_username
+                x-oidc-not-in-token: not_in_token
+                x-oidc-dummy-int: dummy_int_claim
+          - name: basic-auth
+            config:
+              anonymous: anonymous
+
+      - name: httpbin-route-secret
+        paths:
+          - /secret
+        strip_path: true
+        plugins:
+          - name: acl
+            config:
+              allow: 
+                - secret
+              always_use_authenticated_groups: true
+          - name: kong-plugin-freeoidc
+            config:
+              issuer: http://oidc:5557/oidc
+              client_id: client
+              client_secret: secret
+              redirect_uri: https://kong/cb
+              skip_already_auth: true
+              consumer_name: oidcuser
+              headers_from_claims:
+                x-oidc-email: email
+                x-oidc-email-verified: email_verified
+                x-oidc-sub: sub
+                x-oidc-pref-user: preferred_username
+                x-oidc-not-in-token: not_in_token
+                x-oidc-dummy-int: dummy_int_claim
+      - name: httpbin-route-api
+        paths:
+          - /api
+        strip_path: true
+        plugins:
+          - name: acl
+            config:
+              allow:
+                - readers
+              always_use_authenticated_groups: true
+          - name: kong-plugin-freeoidc
+            config:
+              issuer: http://oidc:5557/oidc
+              client_id: client
+              client_secret: secret
+              redirect_uri: https://kong/cb
+              skip_already_auth: true
+              consumer_name: oidcuser
+              redirect_unauthenticated: false
+              headers_from_claims:
+                x-oidc-email: email
+                x-oidc-email-verified: email_verified
+                x-oidc-sub: sub
+                x-oidc-pref-user: preferred_username
+                x-oidc-not-in-token: not_in_token
+                x-oidc-dummy-int: dummy_int_claim
+
+
+consumers:
+- username: anonymous
+  plugins:
+    - name: request-termination
+        
+- username: john
+  basicauth_credentials:
+  - username: john
+    password: basic
+  acls:
+    - group: basicusers
+
+- username: oidcuser
+  id: "ffe30af5-d167-519a-8bdc-2fa89a3aa280"

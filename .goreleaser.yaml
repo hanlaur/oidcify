@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+
+version: 2
+
+env:
+  - KONG_VER={{ if index .Env "KONG_VER"  }}{{ .Env.KONG_VER }}{{ else }}0.0.0{{ end }}
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+
+dockers:
+  - image_templates:
+      - "ghcr.io/hanlaur/kong:{{.Env.KONG_VER}}-freeoidc-{{ .Version }}-amd64"
+    goarch: amd64
+    goos: linux
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64"
+    extra_files:
+      - README.md
+      - LICENSE
+      - NOTICE
+
+  - image_templates:
+      - "ghcr.io/hanlaur/kong:{{.Env.KONG_VER}}-freeoidc-{{ .Version }}-arm64"
+    goarch: arm64
+    goos: linux
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm64"
+    extra_files:
+      - README.md
+      - LICENSE
+      - NOTICE
+
+docker_manifests:
+  - name_template: "ghcr.io/hanlaur/kong:{{.Env.KONG_VER}}-freeoidc-{{ .Version }}"
+    image_templates:
+      - "ghcr.io/hanlaur/kong:{{.Env.KONG_VER}}-freeoidc-{{ .Version }}-amd64"
+      - "ghcr.io/hanlaur/kong:{{.Env.KONG_VER}}-freeoidc-{{ .Version }}-arm64"

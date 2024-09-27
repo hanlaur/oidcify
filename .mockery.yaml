@@ -1,0 +1,8 @@
+with-expecter: true
+inpackage: True
+packages:
+    github.com/hanlaur/kong-plugin-freeoidc:
+        config:
+        interfaces:
+            Kong:
+                config:

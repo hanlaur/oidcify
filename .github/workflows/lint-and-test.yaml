@@ -1,0 +1,64 @@
+name: lint-and-test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+
+env:
+  GOLANGCI_LINT_VERSION: v1.61.0
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-24.04
+      
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract Go version from go.mod
+        id: extract-go-version
+        run: |
+          GO_VERSION=$(grep '^go ' go.mod | awk '{print $2}')
+          echo "GO_VERSION=$GO_VERSION" >> $GITHUB_ENV
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: go build
+        run: go build -v ./...
+
+      - uses: hoverkraft-tech/compose-action@v2.0.2
+        with:
+          cwd: ${{ github.workspace }}/testenv
+
+      - name: go test
+        run: go test -v ./... -coverprofile=coverage.out
+
+      - name: Convert coverage report to HTML
+        run: go tool cover -html=coverage.out -o coverage.html
+
+      - name: Upload test coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.html
+
+  lint:
+    name: lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+
