@@ -333,6 +333,32 @@ func TestBearerJWTOKAndExpired(t *testing.T) {
 	pluginConfig.AccessWithInterface(mockKong)
 }
 
+func TestPostLogoutRedirect(t *testing.T) {
+	mockOidcServer, _ := mockoidc.Run()
+	defer mockOidcServer.Shutdown() //nolint:errcheck
+
+	cfg := mockOidcServer.Config()
+
+	pluginConfig, ok := New().(*Config)
+	assert.True(t, ok)
+
+	pluginConfig.Issuer = cfg.Issuer
+	pluginConfig.ClientID = cfg.ClientID
+	pluginConfig.ClienSecret = cfg.ClientSecret
+	pluginConfig.RedirectURI = "http://localhost/callback"
+	pluginConfig.PostLogoutRedirectURI = "http://localhost/postlogout"
+
+	mockKong := NewMockKong(t)
+	ignoreLogCalls(mockKong)
+
+	mockKong.EXPECT().RequestGetPath().Return("/logout", nil)
+	mockKong.EXPECT().RequestGetHeaders(-1).Return(map[string][]string{}, nil)
+	mockKong.EXPECT().ResponseSetHeader("Cache-Control", "no-store").Return(nil)
+	mockKong.EXPECT().ResponseSetHeader("Location", pluginConfig.PostLogoutRedirectURI).Return(nil)
+	mockKong.EXPECT().ResponseExitStatus(http.StatusFound)
+	pluginConfig.AccessWithInterface(mockKong)
+}
+
 func TestRealKongRedirectAndACL(t *testing.T) {
 	if os.Getenv("SKIP_EXT_TESTS") != "" {
 		t.Skip("Skipping tests requiring external services")
