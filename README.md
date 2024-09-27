@@ -52,6 +52,7 @@ Plugin supports the following configuration inputs:
 | `session_lifetime_seconds` | Session lifetime in seconds. By default, session life time is set based on ID token expiry. This setting overrides the value from ID token.                                                                              | `0` (use ID token value) |
 | `redirect_unauthenticated` | Defines handling of unauthenticated HTTP requests. When set to `true`, client is redirected to OIDC authorization code flow. When set to `false`, HTTP 401 (Unauthorized) is returned.                                   | `true`                   |
 | `logout_path`              | Defines path that is used to trigger logout (i.e. deletion of session cookie).                                                                                                                                           | `/logout`                |
+| `post_logout_redirect_uri` | Defines URL where to redirect user after logout. If not defined, the logout path will not redirect user but instead display a message. Example: `https://myserver.internal/loggedout/`                                   |                          |
 | `headers_from_claims`      | Defines rules to map ID token or Userinfo claims to HTTP headers for the upstream service. Example: `{ "X-Oidc-Email": "email" }`.                                                                                       | `{}` (no mappings)       |
 | `skip_already_auth`        | If set to `true`, plugin ignores (allows without authentication) requests that already have credential identifier set by higher priority auth plugin. If enabled, also set `consumer_name`                               | `false`                  |
 | `consumer_name`            | Defines the Kong Consumer that will be set as authenticated consumer for a successful request. If not set, the Kong authentication state and related headers will not be modified. Mandatory in case of plugin chaining. |                          |
@@ -62,7 +63,7 @@ If using Kong ACL plugin, set `always_use_authenticated_groups` in ACL plugin co
 
 ## Important notes
 
-* Configured `cookie_hash_key_hex` and `cookie_block_key_hex` values must be kept secret. A person knowing the secrets can forge a session cookie and thus bypass the authentication. Also, `client_secret` should be kept secret.
+* Configured `cookie_hash_key_hex` and `cookie_block_key_hex` values must be kept secret and rotated periodically. A person knowing the secrets can forge a session cookie and thus bypass the authentication. Also, `client_secret` should be kept secret.
 * Test your configuration carefully. This is especially important when using a combination of multiple authn/authz related plugins.
 * Access to kong logs should be protected as logs may contain security sensitive information from OIDC message exchanges.
 * Session refresh using refresh token is not supported.

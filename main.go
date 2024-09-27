@@ -79,6 +79,7 @@ type Config struct {
 	// Behavior
 	RedirectUnauthenticated bool              `json:"redirect_unauthenticated"`
 	LogoutPath              string            `json:"logout_path"              validate:"required"`
+	PostLogoutRedirectURI   string            `json:"post_logout_redirect_uri" validate:"omitempty,http_url"`
 	HeadersFromClaims       map[string]string `json:"headers_from_claims"`
 	SkipAlreadyAuth         bool              `json:"skip_already_auth"`
 	ConsumerName            string            `json:"consumer_name"            validate:"required_if=SkipAlreadyAuth true"`
@@ -530,8 +531,17 @@ func authSessionURILogout(
 		return fmt.Errorf("failed to set Cache-Control header: %w", err)
 	}
 
-	kong.ResponseExit(http.StatusOK, []byte("<html><body>Logged out</body></html>"),
-		map[string][]string{"Content-Type": {"text/html"}})
+	if conf.PostLogoutRedirectURI != "" {
+		err = kong.ResponseSetHeader("Location", conf.PostLogoutRedirectURI)
+		if err != nil {
+			return fmt.Errorf("failed to set Location header: %w", err)
+		}
+
+		kong.ResponseExitStatus(http.StatusFound)
+	} else {
+		kong.ResponseExit(http.StatusOK, []byte("<html><body>Logged out</body></html>"),
+			map[string][]string{"Content-Type": {"text/html"}})
+	}
 
 	return nil
 }
