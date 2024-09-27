@@ -10,14 +10,12 @@ This project is not related to OpenID connect plugin by Kong, Inc.
 * OIDC Authorization Code Flow, with PKCE support
 * Cookie-based session storage
 * Bearer token authentication based on JWT ID token
-* Sets group information so ACL plugin can perform authorization
+* Sets group information in Kong context so that Kong ACL plugin can perform authorization based on groups
 * Mapping of ID token claims to HTTP headers
 
 ## Required Kong version
 
-Kong 3.8.0
-
-Do not use the plugin with older Kong versions. Version 3.8.0 contains an important fix required by the plugin.
+Kong 3.8.0. Do not use the plugin with older Kong versions.
 
 ## Installation
 
@@ -43,7 +41,7 @@ Plugin supports the following configuration inputs:
 | `issuer`                   | OIDC Issuer URL. Will be used to formulate the URL for OIDC discovery document.                                                                                                                                          |                          |
 | `client_id`                | OIDC Client ID for OIDC Authorization Code Flow.                                                                                                                                                                         |                          |
 | `client_secret`            | OIDC Client Secret.                                                                                                                                                                                                      |                          |
-| `redirect_uri`             | OIDC redirect URI.                                                                                                                                                                                                       |                          |
+| `redirect_uri`             | OIDC redirect URI. For example `https://myserver.internal/cb`                                                                                                                                                            |                          |
 | `groups_claim`             | Name of the claim to retrieve user group memberships from. Claim must contain an array of string values. Groups are passed to other plugins via Kong context `authenticated_groups` variable.                            | `groups`                 |
 | `scopes`                   | The scopes to request in the authorization code flow. You must include `openid` as one of the values.                                                                                                                    | `["openid"]`             |
 | `use_pkce`                 | Use PKCE flow. Always use PKCE both with confidential and public clients, if the OIDC provider supports it. Using PKCE is mandatory with public clients.                                                                 | `true`                   |
@@ -60,12 +58,12 @@ Plugin supports the following configuration inputs:
 
 Tip: To generate random values for keys: use command `python3 -c "import secrets; print(secrets.token_hex(32))"`
 
-If using ACL plugin, set `always_use_authenticated_groups` in ACL plugin configuration to use the groups from OIDC provider.
+If using Kong ACL plugin, set `always_use_authenticated_groups` in ACL plugin configuration to use the groups set by this plugin.
 
 ## Important notes
 
 * Configured `cookie_hash_key_hex` and `cookie_block_key_hex` values must be kept secret. A person knowing the secrets can forge a session cookie and thus bypass the authentication. Also, `client_secret` should be kept secret.
-* Test your configuration carefully. This is especially important when combining multiple authentication related plugins.
+* Test your configuration carefully. This is especially important when using a combination of multiple authn/authz related plugins.
 * Access to kong logs should be protected as logs may contain security sensitive information from OIDC message exchanges.
 * Session refresh using refresh token is not supported.
 * Any changes in user profile at the provider during session life time are not reflected to the session.
