@@ -15,8 +15,6 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	//	"github.com/go-jose/go-jose/v4"
-	//	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/oauth2-proxy/mockoidc"
 	"golang.org/x/oauth2"
 
