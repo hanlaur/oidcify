@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Kong/go-pdk/client"
+	"github.com/Kong/go-pdk/entities"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/oauth2-proxy/mockoidc"
 	"golang.org/x/oauth2"
@@ -47,6 +49,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 	pluginConfig.ClienSecret = cfg.ClientSecret
 	pluginConfig.RedirectURI = "http://localhost/cb"
 	pluginConfig.Scopes = []string{"openid", "profile", "email", "groups"}
+	pluginConfig.ConsumerName = "oidcuser"
 	pluginConfig.HeadersFromClaims = map[string]string{
 		"X-Oidc-Email":          "email",
 		"X-Oidc-Email-Verified": "email_verified",
@@ -146,11 +149,11 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 			requestCookies := validateAndConvertOidcCookies(t, oidcCookies)
 			assert.Len(t, requestCookies, 1)
 
-			client := &http.Client{
+			httpClient := &http.Client{
 				CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 			}
 
-			authorizationResponse, err := client.Get(locationHeaderValue) //nolint:noctx
+			authorizationResponse, err := httpClient.Get(locationHeaderValue) //nolint:noctx
 			require.NoError(t, err)
 
 			defer authorizationResponse.Body.Close()
@@ -195,6 +198,21 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 			mockKongSecure.EXPECT().ServiceRequestSetHeader("X-Oidc-Sub", "1234567890").Return(nil)
 			mockKongSecure.EXPECT().ServiceRequestClearHeader("X-Oidc-NotInToken").Return(nil)
 			mockKongSecure.EXPECT().ServiceRequestSetHeader("X-Oidc-Pref-User", "m%F6nkij%E4").Return(nil)
+
+			consumer := entities.Consumer{
+				Id:       "ffe30af5-d167-519a-8bdc-2fa89a3aa280",
+				Username: "oidcuser",
+			}
+			mockKongSecure.EXPECT().ClientLoadConsumer("oidcuser", true).Return(consumer, nil)
+			mockKongSecure.EXPECT().ClientAuthenticate(&consumer, &client.AuthenticatedCredential{
+				Id:         "1234567890",
+				ConsumerId: consumer.Id,
+			}).Return(nil)
+			mockKongSecure.EXPECT().ServiceRequestSetHeader("X-Consumer-Id", consumer.Id).Return(nil)
+			mockKongSecure.EXPECT().ServiceRequestSetHeader("X-Consumer-Username", consumer.Username).Return(nil)
+			mockKongSecure.EXPECT().ServiceRequestSetHeader("X-Credential-Identifier", "1234567890").Return(nil)
+			mockKongSecure.EXPECT().ServiceRequestClearHeader("X-Anonymous-Consumer").Return(nil)
+			mockKongSecure.EXPECT().ServiceRequestClearHeader("X-Consumer-Custom-Id").Return(nil)
 
 			pluginConfig.AccessWithInterface(mockKongSecure)
 
@@ -254,6 +272,7 @@ func TestBearerJWTOKAndExpired(t *testing.T) {
 	pluginConfig.CookieBlockKeyHex = "08ea7af807955a8219fba9efc1c1c9b62515ade6c48a936b6b136a802300b469"
 	pluginConfig.CookieHashKeyHex = "ff74aab316f7070e0fb2288cb5fd456369d0f693927ec2b079b5f71702020df6"
 	pluginConfig.RedirectUnauthenticated = false
+	pluginConfig.ConsumerName = "oidcuser"
 	pluginConfig.HeadersFromClaims = map[string]string{
 		"X-Oidc-Email": "email",
 	}
@@ -315,6 +334,22 @@ func TestBearerJWTOKAndExpired(t *testing.T) {
 	mockKong.EXPECT().RequestGetHeader("authorization").Return("Bearer "+rawIDToken, nil)
 	mockKong.EXPECT().CtxSetShared("authenticated_groups", []any{"readers", "writers"}).Return(nil)
 	mockKong.EXPECT().ServiceRequestSetHeader("X-Oidc-Email", "jane.doe@example.com").Return(nil)
+
+	consumer := entities.Consumer{
+		Id:       "ffe30af5-d167-519a-8bdc-2fa89a3aa280",
+		Username: "oidcuser",
+	}
+	mockKong.EXPECT().ClientLoadConsumer("oidcuser", true).Return(consumer, nil)
+	mockKong.EXPECT().ClientAuthenticate(&consumer, &client.AuthenticatedCredential{
+		Id:         "1234567890",
+		ConsumerId: consumer.Id,
+	}).Return(nil)
+	mockKong.EXPECT().ServiceRequestSetHeader("X-Consumer-Id", consumer.Id).Return(nil)
+	mockKong.EXPECT().ServiceRequestSetHeader("X-Consumer-Username", consumer.Username).Return(nil)
+	mockKong.EXPECT().ServiceRequestSetHeader("X-Credential-Identifier", "1234567890").Return(nil)
+	mockKong.EXPECT().ServiceRequestClearHeader("X-Anonymous-Consumer").Return(nil)
+	mockKong.EXPECT().ServiceRequestClearHeader("X-Consumer-Custom-Id").Return(nil)
+
 	pluginConfig.AccessWithInterface(mockKong)
 
 	// Wait for token to expire
@@ -345,6 +380,7 @@ func TestPostLogoutRedirect(t *testing.T) {
 	pluginConfig.ClienSecret = cfg.ClientSecret
 	pluginConfig.RedirectURI = "http://localhost/callback"
 	pluginConfig.PostLogoutRedirectURI = "http://localhost/postlogout"
+	pluginConfig.ConsumerName = "oidcuser"
 
 	mockKong := NewMockKong(t)
 	ignoreLogCalls(mockKong)
@@ -446,6 +482,31 @@ func TestRealKongRedirectAndACL(t *testing.T) {
 
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("unexpected status code: %v", resp.StatusCode)
+	}
+
+	// Should be allowed by ACL plugin based on group defined for the consumer
+	resp, err = noRedirectClient.Get("https://kong/groupsfromconsumer/get")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: %v", resp.StatusCode)
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&httpBinResponse)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for expectedHeader, expectedValue := range map[string]string{
+		"X-Consumer-Groups":      "consumerreaders",
+		"X-Authenticated-Groups": "readers",
+	} {
+		if httpBinResponse.Headers[expectedHeader] != expectedValue {
+			t.Fatalf("unexpected %v: %v", expectedHeader, httpBinResponse.Headers[expectedHeader])
+		}
 	}
 }
 

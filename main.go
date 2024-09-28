@@ -87,7 +87,7 @@ type Config struct {
 	PostLogoutRedirectURI   string            `json:"post_logout_redirect_uri" validate:"omitempty,http_url"`
 	HeadersFromClaims       map[string]string `json:"headers_from_claims"`
 	SkipAlreadyAuth         bool              `json:"skip_already_auth"`
-	ConsumerName            string            `json:"consumer_name"            validate:"required_if=SkipAlreadyAuth true"`
+	ConsumerName            string            `json:"consumer_name"            validate:"required"`
 }
 
 type AuthState struct {
@@ -454,10 +454,6 @@ func setServiceDataGroups(idTokenClaims map[string]any, conf Config, userInfoCla
 }
 
 func setServiceDataAuth(idTokenClaims map[string]any, conf Config, kong Kong) error {
-	if conf.ConsumerName == "" {
-		return nil
-	}
-
 	consumer, err := kong.ClientLoadConsumer(conf.ConsumerName, true)
 	if err != nil {
 		return fmt.Errorf("unable to load consumer %v: %w", conf.ConsumerName, err)
@@ -486,8 +482,8 @@ func setServiceDataAuth(idTokenClaims map[string]any, conf Config, kong Kong) er
 	}
 
 	headerMap := map[string]string{
-		"X-Consumer-ID":           consumer.Id,
-		"X-Consumer-Custom-ID":    consumer.CustomId,
+		"X-Consumer-Id":           consumer.Id,
+		"X-Consumer-Custom-Id":    consumer.CustomId,
 		"X-Consumer-Username":     consumer.Username,
 		"X-Anonymous-Consumer":    "",
 		"X-Credential-Identifier": credentialIdentifier,

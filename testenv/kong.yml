@@ -90,6 +90,33 @@ services:
                 x-oidc-not-in-token: not_in_token
                 x-oidc-dummy-int: dummy_int_claim
 
+      - name: httpbin-route-groups-from-consumer
+        paths:
+          - /groupsfromconsumer
+        strip_path: true
+        plugins:
+          - name: acl
+            config:
+              allow:
+                - consumerreaders
+              always_use_authenticated_groups: false
+          - name: kong-plugin-freeoidc
+            config:
+              issuer: http://oidc:5557/oidc
+              client_id: client
+              client_secret: secret
+              redirect_uri: https://kong/cb
+              skip_already_auth: true
+              consumer_name: oidcuserwithgroups
+              redirect_unauthenticated: false
+              headers_from_claims:
+                x-oidc-email: email
+                x-oidc-email-verified: email_verified
+                x-oidc-sub: sub
+                x-oidc-pref-user: preferred_username
+                x-oidc-not-in-token: not_in_token
+                x-oidc-dummy-int: dummy_int_claim
+
 
 consumers:
 - username: anonymous
@@ -105,3 +132,7 @@ consumers:
 
 - username: oidcuser
   id: "ffe30af5-d167-519a-8bdc-2fa89a3aa280"
+
+- username: oidcuserwithgroups
+  acls:
+    - group: consumerreaders
