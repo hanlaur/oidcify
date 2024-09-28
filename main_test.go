@@ -49,7 +49,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 	pluginConfig.ClienSecret = cfg.ClientSecret
 	pluginConfig.RedirectURI = "http://localhost/cb"
 	pluginConfig.Scopes = []string{"openid", "profile", "email", "groups"}
-	pluginConfig.ConsumerName = "oidcuser"
+	pluginConfig.ConsumerName = "oidcuser" //nolint:goconst
 	pluginConfig.HeadersFromClaims = map[string]string{
 		"X-Oidc-Email":          "email",
 		"X-Oidc-Email-Verified": "email_verified",
@@ -485,7 +485,7 @@ func TestRealKongRedirectAndACL(t *testing.T) {
 	}
 
 	// Should be allowed by ACL plugin based on group defined for the consumer
-	resp, err = noRedirectClient.Get("https://kong/groupsfromconsumer/get")
+	resp, err = noRedirectClient.Get("https://kong/groupsfromconsumer/get") //nolint:noctx
 	if err != nil {
 		t.Fatal(err)
 	}
