@@ -43,6 +43,7 @@ const (
 	maxCookieLenChars         = 4000
 	maxNumCookies             = 10
 	oidcProviderCacheTimeSecs = 300
+	httpClientTimeoutSecs     = 15
 )
 
 var version = "0.0.0" // goreleaser sets via ldflags
@@ -56,6 +57,10 @@ var (
 var oidcProviderCache *ttlcache.Cache[string, *oidc.Provider] = ttlcache.New[string, *oidc.Provider](
 	ttlcache.WithTTL[string, *oidc.Provider](time.Second*oidcProviderCacheTimeSecs),
 	ttlcache.WithDisableTouchOnHit[string, *oidc.Provider]())
+
+var oidcHTTPClient = &http.Client{
+	Timeout: time.Second * httpClientTimeoutSecs,
+}
 
 type Config struct {
 	// OIDC
@@ -274,11 +279,15 @@ func deleteSession(kong Kong, requestCookies []*http.Cookie, sessionCookieName s
 	return setCookies(kong, "", sessionCookieName, requestCookies)
 }
 
+func newContextWithOidcHTTPClient() context.Context {
+	return oidc.ClientContext(context.Background(), oidcHTTPClient)
+}
+
 func getProvider(kong Kong, issuer string) (*oidc.Provider, error) {
 	item := oidcProviderCache.Get(issuer)
 
 	if item == nil {
-		provider, err := oidc.NewProvider(context.Background(), issuer)
+		provider, err := oidc.NewProvider(newContextWithOidcHTTPClient(), issuer)
 		if err != nil {
 			return nil, fmt.Errorf("OIDC provider initialization failed: %w", err)
 		}
@@ -612,7 +621,7 @@ func authSessionURIRedirect(
 		opts = append(opts, oauth2.VerifierOption(session.OngoingAuth.PKCECodeVerifier))
 	}
 
-	oauth2token, err := oauth2Config.Exchange(context.Background(), code, opts...)
+	oauth2token, err := oauth2Config.Exchange(newContextWithOidcHTTPClient(), code, opts...)
 	if err != nil {
 		return fmt.Errorf("authorization code to token exchange failed: %w", err)
 	}
@@ -624,7 +633,7 @@ func authSessionURIRedirect(
 
 	verifier := provider.Verifier(&oidc.Config{ClientID: conf.ClientID})
 
-	idToken, err := verifier.Verify(context.Background(), rawIDToken)
+	idToken, err := verifier.Verify(newContextWithOidcHTTPClient(), rawIDToken)
 	if err != nil {
 		return fmt.Errorf("ID token verification failed: %w", err)
 	}
@@ -639,7 +648,7 @@ func authSessionURIRedirect(
 
 	oAuth2TokenSource := oauth2.StaticTokenSource(oauth2token)
 
-	userInfo, err := provider.UserInfo(context.Background(), oAuth2TokenSource)
+	userInfo, err := provider.UserInfo(newContextWithOidcHTTPClient(), oAuth2TokenSource)
 	if err != nil {
 		return fmt.Errorf("retrieving userinfo failed: %w", err)
 	}
