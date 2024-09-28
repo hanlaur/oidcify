@@ -838,7 +838,7 @@ func authBearerToken(kong Kong, conf Config, provider *oidc.Provider) (bool, err
 
 	verifier := provider.Verifier(&oidc.Config{SkipClientIDCheck: true})
 
-	idToken, err := verifier.Verify(context.Background(), credentials)
+	idToken, err := verifier.Verify(newContextWithOidcHTTPClient(), credentials)
 	if err != nil {
 		kong.LogWarn(fmt.Sprintf("Bearer JWT token verification failed: %v", err))
 
