@@ -24,6 +24,7 @@ services:
               issuer: http://oidc:5557/oidc
               client_id: client
               client_secret: secret
+              use_userinfo: true
               redirect_uri: https://kong/cb
               skip_already_auth: true
               consumer_name: oidcuser
@@ -53,6 +54,7 @@ services:
               issuer: http://oidc:5557/oidc
               client_id: client
               client_secret: secret
+              use_userinfo: true
               redirect_uri: https://kong/cb
               skip_already_auth: true
               consumer_name: oidcuser
@@ -78,6 +80,7 @@ services:
               issuer: http://oidc:5557/oidc
               client_id: client
               client_secret: secret
+              use_userinfo: true
               redirect_uri: https://kong/cb
               skip_already_auth: true
               consumer_name: oidcuser
@@ -105,6 +108,7 @@ services:
               issuer: http://oidc:5557/oidc
               client_id: client
               client_secret: secret
+              use_userinfo: true
               redirect_uri: https://kong/cb
               skip_already_auth: true
               consumer_name: oidcuserwithgroups
