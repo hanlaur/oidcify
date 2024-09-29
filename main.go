@@ -37,13 +37,14 @@ const (
 )
 
 const (
-	cookieKeyLenBytes         = 32
-	oAuth2StateLenBytes       = 32
-	oAuth2PKCELenBytes        = 32
-	maxCookieLenChars         = 4000
-	maxNumCookies             = 10
-	oidcProviderCacheTimeSecs = 300
-	httpClientTimeoutSecs     = 15
+	cookieKeyLenBytes           = 32
+	oAuth2StateLenBytes         = 32
+	oAuth2PKCELenBytes          = 32
+	maxCookieLenChars           = 4000
+	maxNumCookies               = 10
+	oidcProviderCacheTimeSecs   = 300
+	httpClientTimeoutSecs       = 15
+	maxAuthCodeFlowDurationSecs = 600
 )
 
 var version = "0.0.0" // goreleaser sets via ldflags
@@ -92,8 +93,7 @@ type Config struct {
 }
 
 type AuthState struct {
-	AuthInProgress   bool
-	AuthStarted      time.Time
+	ValidUntil       time.Time
 	State            string
 	PKCECodeVerifier string
 	OriginalURI      string
@@ -588,8 +588,8 @@ func authSessionURIRedirect(
 
 	oauth2Config := getOauth2Config(&conf, provider)
 
-	if !session.OngoingAuth.AuthInProgress {
-		kong.LogErr("Received callback when authentication not in progress")
+	if time.Now().After(session.OngoingAuth.ValidUntil) {
+		kong.LogErr("Received callback when authentication not in progress or auth took too long")
 
 		err = kong.ResponseSetHeader("Cache-Control", "no-store")
 		if err != nil {
@@ -751,11 +751,10 @@ func authSessionURIRegular(
 	}
 
 	session.OngoingAuth = AuthState{
-		AuthInProgress:   true,
-		AuthStarted:      time.Now(),
 		State:            state,
 		PKCECodeVerifier: pkceVerifier,
 		OriginalURI:      requestPath,
+		ValidUntil:       time.Now().Add(time.Second * maxAuthCodeFlowDurationSecs),
 	}
 
 	oauth2Config := getOauth2Config(&conf, provider)
