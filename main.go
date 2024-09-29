@@ -66,14 +66,14 @@ var oidcHTTPClient = &http.Client{
 
 type Config struct {
 	// OIDC
-	Issuer      string   `json:"issuer"        validate:"required,http_url"`
-	ClientID    string   `json:"client_id"     validate:"required"`
-	ClienSecret string   `json:"client_secret"`
-	RedirectURI string   `json:"redirect_uri"  validate:"required,http_url"`
-	GroupsClaim string   `json:"groups_claim"`
-	Scopes      []string `json:"scopes"        validate:"required"`
-	UsePKCE     bool     `json:"use_pkce"`
-	UseUserInfo bool     `json:"use_userinfo"`
+	Issuer       string   `json:"issuer"        validate:"required,http_url"`
+	ClientID     string   `json:"client_id"     validate:"required"`
+	ClientSecret string   `json:"client_secret" validate:"required"`
+	RedirectURI  string   `json:"redirect_uri"  validate:"required,http_url"`
+	GroupsClaim  string   `json:"groups_claim"`
+	Scopes       []string `json:"scopes"        validate:"required"`
+	UsePKCE      bool     `json:"use_pkce"`
+	UseUserInfo  bool     `json:"use_userinfo"`
 
 	// Bearer JWT Auth
 	BearerJWTAllowedAuds []string `json:"bearer_jwt_allowed_auds"`
@@ -349,7 +349,7 @@ func safeHeaderValue(input string) string {
 func getOauth2Config(conf *Config, provider *oidc.Provider) oauth2.Config {
 	oauth2Config := oauth2.Config{
 		ClientID:     conf.ClientID,
-		ClientSecret: conf.ClienSecret,
+		ClientSecret: conf.ClientSecret,
 		RedirectURL:  conf.RedirectURI,
 		Endpoint:     provider.Endpoint(),
 		Scopes:       conf.Scopes,

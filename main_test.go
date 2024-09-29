@@ -46,7 +46,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 
 	pluginConfig.Issuer = cfg.Issuer
 	pluginConfig.ClientID = cfg.ClientID
-	pluginConfig.ClienSecret = cfg.ClientSecret
+	pluginConfig.ClientSecret = cfg.ClientSecret
 	pluginConfig.RedirectURI = "http://localhost/cb"
 	pluginConfig.Scopes = []string{"openid", "profile", "email", "groups"}
 	pluginConfig.UseUserInfo = true
@@ -267,7 +267,7 @@ func TestBearerJWTOKAndExpired(t *testing.T) {
 
 	pluginConfig.Issuer = cfg.Issuer
 	pluginConfig.ClientID = cfg.ClientID
-	pluginConfig.ClienSecret = cfg.ClientSecret
+	pluginConfig.ClientSecret = cfg.ClientSecret
 	pluginConfig.RedirectURI = "http://localhost/cb"
 	pluginConfig.Scopes = []string{"openid", "profile", "email", "groups"}
 	pluginConfig.BearerJWTAllowedAuds = []string{cfg.ClientID}
@@ -379,7 +379,7 @@ func TestPostLogoutRedirect(t *testing.T) {
 
 	pluginConfig.Issuer = cfg.Issuer
 	pluginConfig.ClientID = cfg.ClientID
-	pluginConfig.ClienSecret = cfg.ClientSecret
+	pluginConfig.ClientSecret = cfg.ClientSecret
 	pluginConfig.RedirectURI = "http://localhost/callback"
 	pluginConfig.PostLogoutRedirectURI = "http://localhost/postlogout"
 	pluginConfig.ConsumerName = "oidcuser"

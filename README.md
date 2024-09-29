@@ -1,6 +1,6 @@
-# kong-plugin-freeoidc: Free OIDC plugin for Kong Gateway
+# kong-plugin-freeoidc: OIDC plugin for Kong Gateway
 
-Free OpenID Connect (OIDC) plugin for [Kong Gateway](https://github.com/Kong/kong), written in Go using Kong Plugin Development Kit.
+OpenID Connect (OIDC) plugin for [Kong Gateway](https://github.com/Kong/kong), written in Go using Kong Plugin Development Kit.
 
 This project is not affiliated with or otherwise sponsored by Kong, Inc.
 This project is not related to OpenID connect plugin by Kong, Inc.
@@ -38,20 +38,20 @@ Plugin supports the following configuration inputs:
 
 | Option                     | Description                                                                                                                                                                                              | Default Value            |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| `issuer`                   | OIDC Issuer URL. Will be used to formulate the URL for OIDC discovery document.                                                                                                                          |                          |
+| `issuer`                   | OIDC Issuer URL. Will be used to formulate the URL for OIDC discovery document. Example: `https://oidc.issuer.internal/`                                                                                 |                          |
 | `client_id`                | OIDC Client ID for OIDC Authorization Code Flow.                                                                                                                                                         |                          |
 | `client_secret`            | OIDC Client Secret.                                                                                                                                                                                      |                          |
 | `redirect_uri`             | OIDC redirect URI. For example `https://myserver.internal/cb`                                                                                                                                            |                          |
 | `groups_claim`             | Name of the ID token claim to retrieve user group memberships from. Claim must contain an array of string values. Groups are passed to other plugins via Kong context `authenticated_groups` variable.   | `groups`                 |
 | `scopes`                   | The scopes to request in the authorization code flow. You must include `openid` as one of the values.                                                                                                    | `["openid"]`             |
-| `use_pkce`                 | Use PKCE flow. Always use PKCE both with confidential and public clients, if the OIDC provider supports it. Using PKCE is mandatory with public clients.                                                 | `true`                   |
+| `use_pkce`                 | Use PKCE in the Authorization Code Flow. It is recommended to always use PKCE, if the OIDC provider supports it.                                                                                         | `true`                   |
 | `use_userinfo`             | Defines whether to call userinfo endpoint to collect additional claims for the purposes of `headers_from_claims` functionality.                                                                          | `false`                  |
 | `bearer_jwt_allowed_auds`  | Allowed `aud` values when validating Authorization header Bearer token. By default Bearer JWT authentication is disabled. The `aud` may be same or different from the authorization code flow Client ID. | `[]` (no allowed ids)    |
 | `bearer_jwt_allowed_algs`  | Allowed signing algorithms when validating Authorization header Bearer token.                                                                                                                            | `["RS256"]`              |
 | `cookie_name`              | Name prefix for OIDC session cookie. Sequence number will be appended to support cookie splitting.                                                                                                       | `OIDCSESSION`            |
 | `cookie_hash_key_hex`      | Secret key used for cookie HMAC authentication. Must be cryptographically strong, 32 hex characters (256 bits). This value must be kept secret. If not set, random value is generated at startup.        | randomized on startup    |
 | `cookie_block_key_hex`     | Secret key used for cookie encryption. Must be cryptographically strong, 32 hex characters (256 bits). This value must be kept secret. If not set, random value is generated at startup.                 | randomized on startup    |
-| `session_lifetime_seconds` | Session lifetime in seconds. By default, session life time is set based on ID token expiry. This setting overrides the value from ID token.                                                              | `0` (use ID token value) |
+| `session_lifetime_seconds` | Session lifetime in seconds. By default, session life time follows ID token expiry. If set, session expires based on ID token `iat` plus the configured lifetime value. Applies to auth code flow only.  | `0` (use ID token value) |
 | `redirect_unauthenticated` | Defines handling of unauthenticated HTTP requests. When set to `true`, client is redirected to OIDC authorization code flow. When set to `false`, HTTP 401 (Unauthorized) is returned.                   | `true`                   |
 | `logout_path`              | Defines path that is used to trigger logout (i.e. deletion of session cookie).                                                                                                                           | `/logout`                |
 | `post_logout_redirect_uri` | Defines URL where to redirect user after logout. If not defined, the logout path will not redirect user but instead display a message. Example: `https://myserver.internal/loggedout/`                   |                          |
