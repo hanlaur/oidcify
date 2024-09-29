@@ -40,6 +40,7 @@ const (
 	cookieKeyLenBytes           = 32
 	oAuth2StateLenBytes         = 32
 	oAuth2PKCELenBytes          = 32
+	oidcNonceLenBytes           = 32
 	maxCookieLenChars           = 4000
 	maxNumCookies               = 10
 	oidcProviderCacheTimeSecs   = 300
@@ -96,6 +97,7 @@ type AuthState struct {
 	ValidUntil       time.Time
 	State            string
 	PKCECodeVerifier string
+	Nonce            string
 	OriginalURI      string
 }
 
@@ -657,6 +659,10 @@ func authSessionURIRedirect(
 		return fmt.Errorf("session validation failed when processing callback: %w", err)
 	}
 
+	if session.OngoingAuth.Nonce != idTokenClaims["nonce"] {
+		return errors.New("nonce mismatch between request and ID token")
+	}
+
 	if conf.UseUserInfo {
 		oAuth2TokenSource := oauth2.StaticTokenSource(oauth2token)
 
@@ -750,14 +756,16 @@ func authSessionURIRegular(
 
 	state, errState := randomHexString(oAuth2StateLenBytes)
 	pkceVerifier, errPKCE := randomHexString(oAuth2PKCELenBytes)
+	nonce, errNonce := randomHexString(oidcNonceLenBytes)
 
-	if errState != nil || errPKCE != nil {
+	if errState != nil || errPKCE != nil || errNonce != nil {
 		return fmt.Errorf("unable to generate secure state for PKCE %w, %w", errState, errPKCE)
 	}
 
 	session.OngoingAuth = AuthState{
 		State:            state,
 		PKCECodeVerifier: pkceVerifier,
+		Nonce:            nonce,
 		OriginalURI:      requestPath,
 		ValidUntil:       time.Now().Add(time.Second * maxAuthCodeFlowDurationSecs),
 	}
@@ -765,6 +773,8 @@ func authSessionURIRegular(
 	oauth2Config := getOauth2Config(&conf, provider)
 
 	var opts []oauth2.AuthCodeOption
+
+	opts = append(opts, oauth2.SetAuthURLParam("nonce", nonce))
 
 	if conf.UsePKCE {
 		opts = append(opts, oauth2.S256ChallengeOption(pkceVerifier))
