@@ -49,6 +49,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 	pluginConfig.ClienSecret = cfg.ClientSecret
 	pluginConfig.RedirectURI = "http://localhost/cb"
 	pluginConfig.Scopes = []string{"openid", "profile", "email", "groups"}
+	pluginConfig.UseUserInfo = true
 	pluginConfig.ConsumerName = "oidcuser" //nolint:goconst
 	pluginConfig.HeadersFromClaims = map[string]string{
 		"X-Oidc-Email":          "email",

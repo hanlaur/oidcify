@@ -71,6 +71,7 @@ type Config struct {
 	GroupsClaim string   `json:"groups_claim"`
 	Scopes      []string `json:"scopes"        validate:"required"`
 	UsePKCE     bool     `json:"use_pkce"`
+	UseUserInfo bool     `json:"use_userinfo"`
 
 	// Bearer JWT Auth
 	BearerJWTAllowedAuds []string `json:"bearer_jwt_allowed_auds"`
@@ -656,15 +657,17 @@ func authSessionURIRedirect(
 		return fmt.Errorf("session validation failed when processing callback: %w", err)
 	}
 
-	oAuth2TokenSource := oauth2.StaticTokenSource(oauth2token)
+	if conf.UseUserInfo {
+		oAuth2TokenSource := oauth2.StaticTokenSource(oauth2token)
 
-	userInfo, err := provider.UserInfo(newContextWithOidcHTTPClient(), oAuth2TokenSource)
-	if err != nil {
-		return fmt.Errorf("retrieving userinfo failed: %w", err)
-	}
+		userInfo, err := provider.UserInfo(newContextWithOidcHTTPClient(), oAuth2TokenSource)
+		if err != nil {
+			return fmt.Errorf("retrieving userinfo failed: %w", err)
+		}
 
-	if err := userInfo.Claims(&session.UserInfoClaims); err != nil {
-		return fmt.Errorf("extracting claims from userinfo failed: %w", err)
+		if err := userInfo.Claims(&session.UserInfoClaims); err != nil {
+			return fmt.Errorf("extracting claims from userinfo failed: %w", err)
+		}
 	}
 
 	originalURI := session.OngoingAuth.OriginalURI
