@@ -77,10 +77,10 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 		2:   1,
 		3:   1,
 		20:  1,
-		100: 2,
-		200: 3,
-		500: 7,
-		600: 9,
+		100: 3,
+		200: 4,
+		500: 9,
+		600: 10,
 	}
 
 	for numOfGroups, expectedNumOfCookies := range numOfGroupsToCookies {
