@@ -48,8 +48,8 @@ Plugin supports the following configuration inputs:
 | `use_userinfo`             | Defines whether to call userinfo endpoint to collect additional claims for the purposes of `headers_from_claims` functionality.                                                                          | `false`                  |
 | `bearer_jwt_allowed_auds`  | Allowed `aud` values when validating Authorization header Bearer token. By default Bearer JWT authentication is disabled. The `aud` may be same or different from the authorization code flow Client ID. | `[]` (no allowed ids)    |
 | `cookie_name`              | Name prefix for OIDC session cookie. Sequence number will be appended to support cookie splitting.                                                                                                       | `OIDCSESSION`            |
-| `cookie_hash_key_hex`      | Secret key used for cookie HMAC authentication. Must be 32 hex characters (256 bits). This value must be kept secret. If not set, random value is generated at startup.                                  | randomized on sartup     |
-| `cookie_block_key_hex`     | Secret key used for cookie encryption. Must be 32 hex characters (256 bits). This value must be kept secret. If not set, random value is generated at startup.                                           | randomized on startup    |
+| `cookie_hash_key_hex`      | Secret key used for cookie HMAC authentication. Must be cryptographically strong, 32 hex characters (256 bits). This value must be kept secret. If not set, random value is generated at startup.        | randomized on startup    |
+| `cookie_block_key_hex`     | Secret key used for cookie encryption. Must be cryptographically strong, 32 hex characters (256 bits). This value must be kept secret. If not set, random value is generated at startup.                 | randomized on startup    |
 | `session_lifetime_seconds` | Session lifetime in seconds. By default, session life time is set based on ID token expiry. This setting overrides the value from ID token.                                                              | `0` (use ID token value) |
 | `redirect_unauthenticated` | Defines handling of unauthenticated HTTP requests. When set to `true`, client is redirected to OIDC authorization code flow. When set to `false`, HTTP 401 (Unauthorized) is returned.                   | `true`                   |
 | `logout_path`              | Defines path that is used to trigger logout (i.e. deletion of session cookie).                                                                                                                           | `/logout`                |
@@ -64,7 +64,7 @@ When using Kong ACL plugin, set `always_use_authenticated_groups: true` in ACL p
 
 ## Important notes
 
-* Configured `cookie_hash_key_hex` and `cookie_block_key_hex` values must be kept secret and rotated periodically. A person knowing the secrets can forge a session cookie and thus bypass the authentication. Also, `client_secret` should be kept secret.
+* Configured `cookie_hash_key_hex` and `cookie_block_key_hex` values must be kept secret and rotated periodically. A person knowing the secrets can forge a session cookie. Also, `client_secret` should be kept secret.
 * Always use the plugin in combination with Kong ACL plugin and allow access only to defined groups. This provides additional protection layer.
 * Test your configuration carefully. This is especially important when using a combination of multiple authn/authz related plugins.
 * Access to kong logs should be protected as logs may contain security sensitive information from OIDC message exchanges.
