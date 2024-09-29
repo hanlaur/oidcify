@@ -99,11 +99,10 @@ type AuthState struct {
 }
 
 type SessionData struct {
-	AuthenticationComplete   bool
-	AuthenticationValidUntil time.Time
-	OngoingAuth              AuthState
-	IDTokenClaims            map[string]any
-	UserInfoClaims           map[string]any
+	AuthenticationComplete bool
+	OngoingAuth            AuthState
+	RawIDToken             string
+	UserInfoClaims         map[string]any
 }
 
 func New() interface{} {
@@ -265,8 +264,6 @@ func setSession(
 	sessionCookieName string,
 	session *SessionData,
 ) error {
-	kong.LogDebug(fmt.Sprintf("Storing session data: %+v", session))
-
 	encodedStr, err := sCookie.Encode(sessionCookieName, session)
 	if err != nil {
 		return fmt.Errorf("session cookie encode failed: %w", err)
@@ -419,13 +416,10 @@ func appendIfSafeGroupStr(kong Kong, groups []any, groupStr string) []any {
 	return groups
 }
 
-func setServiceDataGroups(idTokenClaims map[string]any, conf Config, userInfoClaims map[string]any, kong Kong) error {
+func setServiceDataGroups(idTokenClaims map[string]any, conf Config, kong Kong) error {
 	authenticatedGroups := make([]any, 0)
 
 	groupsValue, ok := idTokenClaims[conf.GroupsClaim]
-	if !ok && userInfoClaims != nil {
-		groupsValue, ok = userInfoClaims[conf.GroupsClaim]
-	}
 
 	if ok {
 		switch val := groupsValue.(type) {
@@ -443,7 +437,7 @@ func setServiceDataGroups(idTokenClaims map[string]any, conf Config, userInfoCla
 			kong.LogWarn(fmt.Sprintf("Unable to process groups claim value: %v", groupsValue))
 		}
 	} else {
-		kong.LogDebug("No groups claim within ID token claims nor within userinfo claims")
+		kong.LogDebug("No groups claim within ID token claims")
 	}
 
 	if err := kong.CtxSetShared("authenticated_groups", authenticatedGroups); err != nil {
@@ -509,7 +503,7 @@ func setServiceData(idTokenClaims, userInfoClaims map[string]any, conf Config, k
 		return err
 	}
 
-	if err := setServiceDataGroups(idTokenClaims, conf, userInfoClaims, kong); err != nil {
+	if err := setServiceDataGroups(idTokenClaims, conf, kong); err != nil {
 		return err
 	}
 
@@ -518,6 +512,34 @@ func setServiceData(idTokenClaims, userInfoClaims map[string]any, conf Config, k
 	}
 
 	return nil
+}
+
+// authSessionVerifyIDToken verifies the ID token, session expiry and returns the ID token claim if successful.
+func authSessionVerifyIDToken(conf Config, session *SessionData, provider *oidc.Provider) (map[string]any, error) {
+	// If session lifetime is configured, skip expiry check by the verifier as this functon will check it separately.
+	skipVerifierExpiryCheck := conf.SessionLifetimeSeconds > 0
+
+	verifier := provider.Verifier(&oidc.Config{ClientID: conf.ClientID, SkipExpiryCheck: skipVerifierExpiryCheck})
+
+	idToken, err := verifier.Verify(newContextWithOidcHTTPClient(), session.RawIDToken)
+	if err != nil {
+		return nil, fmt.Errorf("ID token verification failed: %w", err)
+	}
+
+	if skipVerifierExpiryCheck {
+		sessionExpiryTime := idToken.IssuedAt.Add(time.Second * time.Duration(conf.SessionLifetimeSeconds))
+
+		if time.Now().After(sessionExpiryTime) {
+			return nil, errors.New("session expired")
+		}
+	}
+
+	var idTokenClaims map[string]any
+	if err := idToken.Claims(&idTokenClaims); err != nil {
+		return nil, fmt.Errorf("extracting claims from ID token failed: %w", err)
+	}
+
+	return idTokenClaims, nil
 }
 
 // authSessionURILogout implement OIDC Authorization code flow logic for handling requests to the logout URI.
@@ -627,20 +649,12 @@ func authSessionURIRedirect(
 		return errors.New("unable to retrieve ID token from token endpoint response")
 	}
 
-	verifier := provider.Verifier(&oidc.Config{ClientID: conf.ClientID})
+	session.RawIDToken = rawIDToken
 
-	idToken, err := verifier.Verify(newContextWithOidcHTTPClient(), rawIDToken)
+	idTokenClaims, err := authSessionVerifyIDToken(conf, session, provider)
 	if err != nil {
-		return fmt.Errorf("ID token verification failed: %w", err)
+		return fmt.Errorf("session validation failed when processing callback: %w", err)
 	}
-
-	kong.LogDebug(fmt.Sprintf("Got token: %+v", idToken))
-
-	if err := idToken.Claims(&session.IDTokenClaims); err != nil {
-		return fmt.Errorf("extracting claims from ID token failed: %w", err)
-	}
-
-	kong.LogDebug(fmt.Sprintf("Got claims: %+v", session.IDTokenClaims))
 
 	oAuth2TokenSource := oauth2.StaticTokenSource(oauth2token)
 
@@ -648,8 +662,6 @@ func authSessionURIRedirect(
 	if err != nil {
 		return fmt.Errorf("retrieving userinfo failed: %w", err)
 	}
-
-	kong.LogDebug(fmt.Sprintf("Got userinfo: %+v", userInfo))
 
 	if err := userInfo.Claims(&session.UserInfoClaims); err != nil {
 		return fmt.Errorf("extracting claims from userinfo failed: %w", err)
@@ -660,13 +672,8 @@ func authSessionURIRedirect(
 	session.OngoingAuth = AuthState{}
 
 	session.AuthenticationComplete = true
-	if conf.SessionLifetimeSeconds > 0 {
-		session.AuthenticationValidUntil = time.Now().Add(time.Duration(conf.SessionLifetimeSeconds) * time.Second)
-	} else {
-		session.AuthenticationValidUntil = idToken.Expiry
-	}
 
-	kong.LogDebug(fmt.Sprintf("Authentication will be valid until %v", session.AuthenticationValidUntil))
+	kong.LogInfo(fmt.Sprintf("Session set-up done: ID Token Claims=%#v, UserInfo Claims=%#v", idTokenClaims, session.UserInfoClaims))
 
 	err = setSession(kong, sCookie, requestCookies, conf.CookieName, session)
 	if err != nil {
@@ -698,16 +705,27 @@ func authSessionURIRegular(
 
 	session := getSession(kong, sCookie, requestCookies, conf.CookieName)
 
-	if session.AuthenticationComplete && session.AuthenticationValidUntil.After(time.Now()) {
-		kong.LogDebug(fmt.Sprintf("Authentication valid until %v", session.AuthenticationValidUntil))
+	if session.AuthenticationComplete {
+		// Token was validated already when handling the callback, and the session data is stored in
+		// encrypted cookie, so except for expiry check, revalidation may be redundant. However
+		// revalidation can reduce impact should the cookie encryption be compromised.
+		idTokenClaims, err := authSessionVerifyIDToken(conf, session, provider)
 
-		err = setServiceData(session.IDTokenClaims, session.UserInfoClaims, conf, kong)
-		if err != nil {
-			return fmt.Errorf("error setting service data: %w", err)
+		if err == nil {
+			err = setServiceData(idTokenClaims, session.UserInfoClaims, conf, kong)
+			if err != nil {
+				return fmt.Errorf("error setting service data: %w", err)
+			}
+
+			// Session valid
+
+			return nil
 		}
 
-		return nil
+		kong.LogDebug(fmt.Sprintf("Previously completed authentication not valid: %v", err))
 	}
+
+	// New session or old session not anymore valid
 
 	if !conf.RedirectUnauthenticated {
 		err = kong.ResponseSetHeader("Cache-Control", "no-store")
