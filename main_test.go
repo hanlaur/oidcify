@@ -180,6 +180,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 				oidcCookies = append(oidcCookies, v)
 			})
 			mockKongCallback.EXPECT().ResponseSetHeader("Location", "/secretplace").Return(nil)
+			mockKongCallback.EXPECT().ResponseSetHeader("Cache-Control", "no-store").Return(nil)
 			mockKongCallback.EXPECT().ResponseExitStatus(http.StatusFound)
 
 			pluginConfig.AccessWithInterface(mockKongCallback)

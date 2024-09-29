@@ -683,6 +683,11 @@ func authSessionURIRedirect(
 		return fmt.Errorf("unable to set session  %w", err)
 	}
 
+	err = kong.ResponseSetHeader("Cache-Control", "no-store")
+	if err != nil {
+		return fmt.Errorf("failed to set Cache-Control header: %w", err)
+	}
+
 	err = kong.ResponseSetHeader("Location", originalURI)
 	if err != nil {
 		return fmt.Errorf("failed to set Location header: %w", err)
