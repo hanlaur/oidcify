@@ -77,6 +77,7 @@ type Config struct {
 
 	// Bearer JWT Auth
 	BearerJWTAllowedAuds []string `json:"bearer_jwt_allowed_auds"`
+	BearerJWTAllowedAlgs []string `json:"bearer_jwt_allowed_algs" validate:"required,min=1"`
 
 	// Session management
 	CookieName             string `json:"cookie_name"              validate:"required"`
@@ -116,6 +117,7 @@ func New() interface{} {
 		CookieName:              "OIDCSESSION",
 		RedirectUnauthenticated: true,
 		LogoutPath:              "/logout",
+		BearerJWTAllowedAlgs:    []string{"RS256"},
 	}
 
 	return &defaultConfig
@@ -867,7 +869,7 @@ func authBearerToken(kong Kong, conf Config, provider *oidc.Provider) (bool, err
 		return false, nil
 	}
 
-	verifier := provider.Verifier(&oidc.Config{SkipClientIDCheck: true})
+	verifier := provider.Verifier(&oidc.Config{SkipClientIDCheck: true, SupportedSigningAlgs: conf.BearerJWTAllowedAlgs})
 
 	idToken, err := verifier.Verify(newContextWithOidcHTTPClient(), credentials)
 	if err != nil {
