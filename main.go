@@ -458,8 +458,6 @@ func setServiceDataAuth(idTokenClaims map[string]any, conf Config, kong Kong) er
 		return fmt.Errorf("unable to load consumer %v: %w", conf.ConsumerName, err)
 	}
 
-	kong.LogDebug(fmt.Sprintf("Loaded consumer: %+v", consumer))
-
 	subClaim, okCredID := idTokenClaims["sub"]
 	if !okCredID {
 		return errors.New("ID token does not contain sub claim")
@@ -906,8 +904,6 @@ func authBearerToken(kong Kong, conf Config, provider *oidc.Provider) (bool, err
 
 	for _, allowedAud := range conf.BearerJWTAllowedAuds {
 		if slices.Contains(idToken.Audience, allowedAud) {
-			kong.LogDebug(fmt.Sprintf("Token contains allowed audience: %v", allowedAud))
-
 			foundAllowedAud = true
 		}
 	}
