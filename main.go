@@ -519,6 +519,20 @@ func setServiceData(idTokenClaims, userInfoClaims map[string]any, conf Config, k
 	return nil
 }
 
+// Performs further ID token validations that are not included in OIDC library Verify function.
+func verifyIDTokenCommon(idToken *oidc.IDToken) error {
+	if idToken.Subject == "" {
+		return errors.New("token does not contain sub claim")
+	}
+
+	// Currently limit implementation to single-audience tokens
+	if len(idToken.Audience) != 1 {
+		return errors.New("token does not contain exactly one audience")
+	}
+
+	return nil
+}
+
 // authSessionVerifyIDToken verifies the ID token, session expiry and returns the ID token claim if successful.
 func authSessionVerifyIDToken(conf Config, session *SessionData, provider *oidc.Provider) (map[string]any, error) {
 	// If session lifetime is configured, skip expiry check by the verifier as this functon will check it separately.
@@ -542,6 +556,10 @@ func authSessionVerifyIDToken(conf Config, session *SessionData, provider *oidc.
 	var idTokenClaims map[string]any
 	if err := idToken.Claims(&idTokenClaims); err != nil {
 		return nil, fmt.Errorf("extracting claims from ID token failed: %w", err)
+	}
+
+	if err := verifyIDTokenCommon(idToken); err != nil {
+		return nil, err
 	}
 
 	return idTokenClaims, nil
@@ -873,6 +891,12 @@ func authBearerToken(kong Kong, conf Config, provider *oidc.Provider) (bool, err
 
 	idToken, err := verifier.Verify(newContextWithOidcHTTPClient(), credentials)
 	if err != nil {
+		kong.LogWarn(fmt.Sprintf("Bearer JWT token verification failed: %v", err))
+
+		return false, nil
+	}
+
+	if err := verifyIDTokenCommon(idToken); err != nil {
 		kong.LogWarn(fmt.Sprintf("Bearer JWT token verification failed: %v", err))
 
 		return false, nil
