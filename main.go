@@ -528,6 +528,10 @@ func verifyIDTokenCommon(idToken *oidc.IDToken) error {
 		return errors.New("token does not contain exactly one audience")
 	}
 
+	if idToken.IssuedAt.IsZero() {
+		return errors.New("token does not contain iat claim")
+	}
+
 	return nil
 }
 
