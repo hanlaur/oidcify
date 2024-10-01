@@ -1,4 +1,4 @@
-module github.com/hanlaur/kong-plugin-oidcify
+module github.com/hanlaur/oidcify
 
 go 1.23
 

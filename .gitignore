@@ -1,5 +1,5 @@
 dist/
-kong-plugin-oidcify
+oidcify
 cover.html
 cover.out
 .vscode

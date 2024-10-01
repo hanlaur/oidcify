@@ -19,10 +19,10 @@ services:
     image: 'kong:3.8.0'
     environment:
       - KONG_DATABASE=off
-      - KONG_PLUGINS=bundled,kong-plugin-oidcify
-      - KONG_PLUGINSERVER_NAMES=kong-plugin-oidcify
-      - KONG_PLUGINSERVER_KONG_PLUGIN_OIDCIFY_QUERY_CMD=/usr/local/bin/kong-plugin-oidcify -dump
-      - KONG_PLUGINSERVER_KONG_PLUGIN_OIDCIFY_START_CMD=/usr/local/bin/kong-plugin-oidcify
+      - KONG_PLUGINS=bundled,oidcify
+      - KONG_PLUGINSERVER_NAMES=oidcify
+      - KONG_PLUGINSERVER_OIDCIFY_QUERY_CMD=/usr/local/bin/oidcify -dump
+      - KONG_PLUGINSERVER_OIDCIFY_START_CMD=/usr/local/bin/oidcify
       - KONG_PROXY_LISTEN=0.0.0.0:80, 0.0.0.0:443 ssl
       - KONG_ADMIN_LISTEN=0.0.0.0:8001, 0.0.0.0:8444 ssl
       - KONG_STATUS_LISTEN=0.0.0.0:8100
@@ -33,5 +33,5 @@ services:
 
     volumes:
       - ./kong.yml:/etc/kong/kong.yml
-      - ../kong-plugin-oidcify:/usr/local/bin/kong-plugin-oidcify
+      - ../oidcify:/usr/local/bin/oidcify
 

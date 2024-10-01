@@ -14,7 +14,7 @@ services:
         strip_path: true
 
 plugins:
-  - name: kong-plugin-oidcify
+  - name: oidcify
     config:
       issuer: $OIDC_ISSUER
       client_id: $OIDC_CLIENT_ID
