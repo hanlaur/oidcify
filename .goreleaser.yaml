@@ -5,6 +5,11 @@ version: 2
 env:
   - KONG_VER={{ if index .Env "KONG_VER"  }}{{ .Env.KONG_VER }}{{ else }}0.0.0{{ end }}
 
+before:
+  hooks:
+    - go install github.com/google/go-licenses@v1.6.0
+    - make license-report
+
 builds:
   - env:
       - CGO_ENABLED=0
@@ -16,6 +21,12 @@ builds:
 
 archives:
   - format: tar.gz
+    files:
+      - README.md
+      - LICENSE
+      - NOTICE
+      - component_licenses
+    wrap_in_directory: true
 
 dockers:
   - image_templates:
@@ -30,6 +41,7 @@ dockers:
       - README.md
       - LICENSE
       - NOTICE
+      - component_licenses
 
   - image_templates:
       - "ghcr.io/hanlaur/kong:{{.Env.KONG_VER}}-oidcify-{{ .Version }}-arm64"
@@ -43,6 +55,7 @@ dockers:
       - README.md
       - LICENSE
       - NOTICE
+      - component_licenses
 
 docker_manifests:
   - name_template: "ghcr.io/hanlaur/kong:{{.Env.KONG_VER}}-oidcify-{{ .Version }}"
