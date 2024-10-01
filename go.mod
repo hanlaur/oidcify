@@ -1,4 +1,4 @@
-module github.com/hanlaur/kong-plugin-freeoidc
+module github.com/hanlaur/kong-plugin-oidcify
 
 go 1.23
 

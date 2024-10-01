@@ -1,7 +1,7 @@
 with-expecter: true
 inpackage: True
 packages:
-    github.com/hanlaur/kong-plugin-freeoidc:
+    github.com/hanlaur/kong-plugin-oidcify:
         config:
         interfaces:
             Kong:

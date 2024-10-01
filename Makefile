@@ -46,9 +46,9 @@ setup-labels:
 .PHONY: clean
 clean:
 	rm -rf cover.out cover.html
-	rm -rf dist kong-plugin-freeoidc mocks
+	rm -rf dist kong-plugin-oidcify mocks
 
 .PHONY: update-mocks
 update-mocks:
 	mockery
-	mv mocks/github.com/hanlaur/kong-plugin-freeoidc/mock_Kong.go mock_Kong.go
+	mv mocks/github.com/hanlaur/kong-plugin-oidcify/mock_Kong.go mock_Kong.go
