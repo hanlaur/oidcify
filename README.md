@@ -1,4 +1,4 @@
-# kong-plugin-oidcify: OIDC plugin for Kong Gateway
+# oidcify: OIDC plugin for Kong Gateway
 
 OpenID Connect (OIDC) plugin for [Kong Gateway](https://github.com/Kong/kong), written in Go using Kong Plugin Development Kit.
 
@@ -19,15 +19,15 @@ Kong 3.8.0. Do not use the plugin with older Kong versions.
 
 ## Installation
 
-Place binary `kong-plugin-oidcify` in `/usr/local/bin/`. 
+Place binary `oidcify` in `/usr/local/bin/`. 
 
 Set following environment variables before starting Kong:
 
 ```shell
-export KONG_PLUGINS="bundled,kong-plugin-oidcify"
-export KONG_PLUGINSERVER_NAMES="kong-plugin-oidcify"
-export KONG_PLUGINSERVER_KONG_PLUGIN_OIDCIFY_QUERY_CMD="/usr/local/bin/kong-plugin-oidcify -dump"
-export KONG_PLUGINSERVER_KONG_PLUGIN_OIDCIFY_START_CMD="/usr/local/bin/kong-plugin-oidcify"
+export KONG_PLUGINS="bundled,oidcify"
+export KONG_PLUGINSERVER_NAMES="oidcify"
+export KONG_PLUGINSERVER_OIDCIFY_QUERY_CMD="/usr/local/bin/oidcify -dump"
+export KONG_PLUGINSERVER_OIDCIFY_START_CMD="/usr/local/bin/oidcify"
 ```
 
 Configure the required configuration options for the plugin in kong plugin configuration.
@@ -90,10 +90,10 @@ database, consider the following:
 ### Tests
 
 Tests include both pure module tests and also integration tests with actual Kong. Integration tests require docker
-compose environment with kong and pre-built kong-plugin-oidcify. To run all tests:
+compose environment with kong and pre-built oidcify. To run all tests:
 
 ```shell
-# build kong-plugin-oidcify
+# build oidcify
 make
 
 # Restart the compose environment with the fresh build
