@@ -47,8 +47,18 @@ setup-labels:
 clean:
 	rm -rf cover.out cover.html
 	rm -rf dist oidcify mocks
+	rm -rf component_licenses
 
 .PHONY: update-mocks
 update-mocks:
 	mockery
 	mv mocks/github.com/hanlaur/oidcify/mock_Kong.go mock_Kong.go
+
+.PHONY: license-report
+license-report:
+	go-licenses save ./... --save_path=component_licenses --force
+
+.PHONY: docker
+docker: build license-report
+	docker build . -t kong-with-oidcify
+
