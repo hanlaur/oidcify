@@ -27,7 +27,7 @@ plugins:
         x-oidc-email: email
         x-oidc-sub: sub
       redirect_unauthenticated: true
-      session_lifetime_seconds: 60
+      #session_lifetime_seconds: 900
       skip_already_auth: true
       consumer_name: oidcuser
       bearer_jwt_allowed_auds:
