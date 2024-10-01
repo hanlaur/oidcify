@@ -1,6 +1,6 @@
 module github.com/hanlaur/oidcify
 
-go 1.23
+go 1.23.1
 
 require (
 	github.com/Kong/go-pdk v0.11.0
