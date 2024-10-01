@@ -19,7 +19,7 @@ services:
                 - readers
                 - basicusers
               always_use_authenticated_groups: true
-          - name: kong-plugin-freeoidc
+          - name: kong-plugin-oidcify
             config:
               issuer: http://oidc:5557/oidc
               client_id: client
@@ -49,7 +49,7 @@ services:
               allow: 
                 - secret
               always_use_authenticated_groups: true
-          - name: kong-plugin-freeoidc
+          - name: kong-plugin-oidcify
             config:
               issuer: http://oidc:5557/oidc
               client_id: client
@@ -75,7 +75,7 @@ services:
               allow:
                 - readers
               always_use_authenticated_groups: true
-          - name: kong-plugin-freeoidc
+          - name: kong-plugin-oidcify
             config:
               issuer: http://oidc:5557/oidc
               client_id: client
@@ -103,7 +103,7 @@ services:
               allow:
                 - consumerreaders
               always_use_authenticated_groups: false
-          - name: kong-plugin-freeoidc
+          - name: kong-plugin-oidcify
             config:
               issuer: http://oidc:5557/oidc
               client_id: client

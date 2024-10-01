@@ -3,11 +3,11 @@
 set -e
 
 export KONG_DATABASE=off
-export KONG_PLUGINS=bundled,kong-plugin-freeoidc
-export KONG_PLUGINSERVER_NAMES=kong-plugin-freeoidc
-export KONG_PLUGINSERVER_KONG_PLUGIN_FREEOIDC_SOCKET="/tmp/kongprefix/kong-plugin-freeoidc.socket"
-export KONG_PLUGINSERVER_KONG_PLUGIN_FREEOIDC_QUERY_CMD="../kong-plugin-freeoidc -dump"
-export KONG_PLUGINSERVER_KONG_PLUGIN_FREEOIDC_START_CMD="../kong-plugin-freeoidc --kong-prefix /tmp/kongprefix"
+export KONG_PLUGINS=bundled,kong-plugin-oidcify
+export KONG_PLUGINSERVER_NAMES=kong-plugin-oidcify
+export KONG_PLUGINSERVER_KONG_PLUGIN_OIDCIFY_SOCKET="/tmp/kongprefix/kong-plugin-oidcify.socket"
+export KONG_PLUGINSERVER_KONG_PLUGIN_OIDCIFY_QUERY_CMD="../kong-plugin-oidcify -dump"
+export KONG_PLUGINSERVER_KONG_PLUGIN_OIDCIFY_START_CMD="../kong-plugin-oidcify --kong-prefix /tmp/kongprefix"
 export KONG_PROXY_LISTEN="0.0.0.0:8000, 0.0.0.0:8443 ssl"
 export KONG_ADMIN_LISTEN="0.0.0.0:8001, 0.0.0.0:8444 ssl"
 export KONG_STATUS_LISTEN=0.0.0.0:8100

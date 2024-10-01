@@ -1,5 +1,5 @@
 dist/
-kong-plugin-freeoidc
+kong-plugin-oidcify
 cover.html
 cover.out
 .vscode
