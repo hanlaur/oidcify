@@ -51,11 +51,13 @@ const (
 var version = "0.0.0" // goreleaser sets via ldflags
 
 var (
+	// The autoGen keys are used if user plugin configuration does not define keys.
 	autoGenHashKey  = securecookie.GenerateRandomKey(cookieKeyLenBytes)
 	autoGenBlockKey = securecookie.GenerateRandomKey(cookieKeyLenBytes)
 	validate        = validator.New(validator.WithRequiredStructEnabled())
 )
 
+// oidcProviderCache caches OIDC provider, avoiding repeated discovery and JWKS requests.
 var oidcProviderCache *ttlcache.Cache[string, *oidc.Provider] = ttlcache.New[string, *oidc.Provider](
 	ttlcache.WithTTL[string, *oidc.Provider](time.Second*oidcProviderCacheTimeSecs),
 	ttlcache.WithDisableTouchOnHit[string, *oidc.Provider]())
@@ -64,6 +66,7 @@ var oidcHTTPClient = &http.Client{
 	Timeout: time.Second * httpClientTimeoutSecs,
 }
 
+// Config defines the plugin configuration that user can provide.
 type Config struct {
 	// OIDC
 	Issuer       string   `json:"issuer"        validate:"required,http_url"`
@@ -94,6 +97,7 @@ type Config struct {
 	ConsumerName            string            `json:"consumer_name"            validate:"required"`
 }
 
+// AuthState holds the state of an ongoing OIDC Authorization Code flow (from redirect to callback).
 type AuthState struct {
 	ValidUntil       time.Time
 	State            string
@@ -102,6 +106,7 @@ type AuthState struct {
 	OriginalURI      string
 }
 
+// SessionData is stored in the encrypted cookie.
 type SessionData struct {
 	AuthenticationComplete bool
 	OngoingAuth            AuthState
@@ -109,6 +114,7 @@ type SessionData struct {
 	UserInfoClaims         map[string]any
 }
 
+// New returns a new instance of the plugin configuration.
 func New() interface{} {
 	defaultConfig := Config{
 		GroupsClaim:             "groups",
@@ -123,6 +129,7 @@ func New() interface{} {
 	return &defaultConfig
 }
 
+// Get instance of SecureCookie that can be used to encrypt/decrypt session data to cookie.
 func getSecureCookie(hashKeyHex, blockKeyHex string) (*securecookie.SecureCookie, error) {
 	hashKey := autoGenHashKey
 	blockKey := autoGenBlockKey
@@ -155,6 +162,7 @@ func getSecureCookie(hashKeyHex, blockKeyHex string) (*securecookie.SecureCookie
 	return sCookie, nil
 }
 
+// Get request cookies from Kong and translate them to go http.Cookie objects.
 func getRequestCookies(kong Kong) ([]*http.Cookie, error) {
 	headers, err := kong.RequestGetHeaders(-1)
 	if err != nil {
@@ -173,6 +181,8 @@ func getRequestCookies(kong Kong) ([]*http.Cookie, error) {
 	return request.Cookies(), nil
 }
 
+// getSesssion loads session data from encrypted cookie or returns empty session if there is no session
+// or if the session cannot be decoded with currently configured keys.
 func getSession(
 	kong Kong,
 	sCookie *securecookie.SecureCookie,
@@ -206,6 +216,8 @@ func getSession(
 	return &SessionData{}
 }
 
+// setCookies sets cookie headers in the response, taking care of splitting the data into multiple cookies
+// and deleting old cookies as necessary, as number of cookies may change compared to previous state.
 func setCookies(kong Kong, encodedStr string, sessionCookieName string, requestCookies []*http.Cookie) error {
 	if cookieLen := len(encodedStr); cookieLen > maxNumCookies*maxCookieLenChars {
 		return fmt.Errorf("cookie length %v would exceed %v*%v", cookieLen, maxNumCookies, maxCookieLenChars)
@@ -262,6 +274,7 @@ func setCookies(kong Kong, encodedStr string, sessionCookieName string, requestC
 	return nil
 }
 
+// setSession stores session data into encrypted cookie and sets them in the response.
 func setSession(
 	kong Kong,
 	sCookie *securecookie.SecureCookie,
@@ -277,15 +290,19 @@ func setSession(
 	return setCookies(kong, encodedStr, sessionCookieName, requestCookies)
 }
 
+// deleteSession clears any existing session data cookies.
 func deleteSession(kong Kong, requestCookies []*http.Cookie, sessionCookieName string) error {
 	return setCookies(kong, "", sessionCookieName, requestCookies)
 }
 
+// Return new background context that carries a HTTP client that OIDC/oauth library will use
+// for HTTP requests towards the OIDC provider.
 func newContextWithOidcHTTPClient() context.Context {
 	return oidc.ClientContext(context.Background(), oidcHTTPClient)
 }
 
-func getProvider(kong Kong, issuer string) (*oidc.Provider, error) {
+// Return OIDC provider instance for the given issuer, either from cache or by creating a new one.
+func getOIDCProvider(kong Kong, issuer string) (*oidc.Provider, error) {
 	item := oidcProviderCache.Get(issuer)
 
 	if item == nil {
@@ -320,6 +337,7 @@ func getURIType(conf *Config, requestPath string) (URIType, error) {
 	}
 }
 
+// Return cryptographically strong random hex string.
 func randomHexString(numBytes int) (string, error) {
 	bytes := make([]byte, numBytes)
 
@@ -362,6 +380,7 @@ func validateConfig(conf *Config) error {
 	return validate.Struct(conf) //nolint:wrapcheck
 }
 
+// Set the service data headers based on OIDC claims, according to user configured mappings.
 func setServiceDataHeadersFromClaims(conf Config, idTokenClaims map[string]any, userInfoClaims map[string]any, kong Kong) error {
 	for header, claim := range conf.HeadersFromClaims {
 		var headerValue string
@@ -403,6 +422,7 @@ func setServiceDataHeadersFromClaims(conf Config, idTokenClaims map[string]any, 
 	return nil
 }
 
+// Append group string to groups slice if it is safe for use in HTTP headers and Kong X-Authorized-Groups header.
 func appendIfSafeGroupStr(kong Kong, groups []any, groupStr string) []any {
 	// Following pattern may need to be extended to allow more characters.
 	// Target is to have characters that are both safe for use in HTTP headers, and
@@ -421,6 +441,7 @@ func appendIfSafeGroupStr(kong Kong, groups []any, groupStr string) []any {
 	return groups
 }
 
+// Sets groups in Kong context shared variable based on ID token claim so that Kong ACL plugin can use them.
 func setServiceDataGroups(idTokenClaims map[string]any, conf Config, kong Kong) error {
 	authenticatedGroups := make([]any, 0)
 
@@ -452,6 +473,7 @@ func setServiceDataGroups(idTokenClaims map[string]any, conf Config, kong Kong) 
 	return nil
 }
 
+// Sets Kong consumer and credential for the request.
 func setServiceDataAuth(idTokenClaims map[string]any, conf Config, kong Kong) error {
 	consumer, err := kong.ClientLoadConsumer(conf.ConsumerName, true)
 	if err != nil {
@@ -501,6 +523,7 @@ func setServiceDataAuth(idTokenClaims map[string]any, conf Config, kong Kong) er
 	return nil
 }
 
+// Sets service data (Kong authentication, groups, mapped headers) based on ID token claims and user info claims.
 func setServiceData(idTokenClaims, userInfoClaims map[string]any, conf Config, kong Kong) error {
 	if err := setServiceDataAuth(idTokenClaims, conf, kong); err != nil {
 		return err
@@ -742,7 +765,7 @@ func authSessionURIRegular(
 	session := getSession(kong, sCookie, requestCookies, conf.CookieName)
 
 	if session.AuthenticationComplete {
-		// Token was validated already when handling the callback, and the session data is stored in
+		// ID token was validated already when handling the callback, and the session data is stored in
 		// encrypted cookie, so except for expiry check, revalidation may be redundant. However
 		// revalidation can reduce impact should the cookie encryption be compromised.
 		idTokenClaims, err := authSessionVerifyIDToken(conf, session, provider)
@@ -956,7 +979,7 @@ func (conf Config) AccessWithInterface(kong Kong) {
 		}
 	}
 
-	provider, err := getProvider(kong, conf.Issuer)
+	provider, err := getOIDCProvider(kong, conf.Issuer)
 	if err != nil {
 		kong.LogCrit(fmt.Sprintf("Unable to initialize OIDC provider: %v", err))
 		kong.ResponseExitStatus(http.StatusInternalServerError)
@@ -995,9 +1018,9 @@ func main() {
 	go oidcProviderCache.Start()
 	defer oidcProviderCache.Stop()
 
-	Priority := 1000
+	priority := 1000
 
-	err := server.StartServer(New, version, Priority)
+	err := server.StartServer(New, version, priority)
 	if err != nil {
 		log.Fatal(err) //nolint:gocritic
 	}
