@@ -57,7 +57,8 @@ jobs:
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean ${{ env.goreleaser_flags }}
+          # Publishing of container image disabled for now using --skip docker
+          args: release --skip docker --clean ${{ env.goreleaser_flags }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KONG_VER: ${{ steps.kong_version.outputs.kong_version }}
