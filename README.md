@@ -19,6 +19,8 @@ Kong 3.8.0. Do not use the plugin with older Kong versions.
 
 ## Installation
 
+Download the release archive from [Releases](https://github.com/hanlaur/oidcify/releases) page.
+
 Place binary `oidcify` in `/usr/local/bin/`. 
 
 Set following environment variables before starting Kong:
@@ -119,3 +121,10 @@ defined the OIDC provider you want to use.
 ## License information
 
 See file [NOTICE](NOTICE) for copyright information and file [LICENSE](LICENSE) for license text.
+
+## Dependencies
+
+Under the hood, this project utilizes many open-source Go dependencies. See [go.mod](go.mod) for a list.
+Dependency license texts are included in the release archives as collected automatically by
+the [go-licenses](https://github.com/google/go-licenses) tool. Should any license information be missing
+from the archives, consult the dependency home page.
