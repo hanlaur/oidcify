@@ -295,7 +295,8 @@ func deleteSession(kong Kong, requestCookies []*http.Cookie, sessionCookieName s
 	return setCookies(kong, "", sessionCookieName, requestCookies)
 }
 
-// Return new background context that carries a HTTP client that is used for OIDC discovery and JWKS requests.
+// Return new background context that carries a HTTP client that OIDC/oauth library will use
+// for HTTP requests towards the OIDC provider.
 func newContextWithOidcHTTPClient() context.Context {
 	return oidc.ClientContext(context.Background(), oidcHTTPClient)
 }
