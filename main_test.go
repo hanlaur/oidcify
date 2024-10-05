@@ -566,3 +566,42 @@ func TestRealKongSkipAlreadyAuth(t *testing.T) {
 		t.Fatalf("unexpected groups: %v", h)
 	}
 }
+
+func TestStaticProviderConfig(t *testing.T) {
+	pluginConfig, ok := New().(*Config)
+	assert.True(t, ok)
+
+	providerConfig := ProviderConfig{
+		AuthURL:    "https://staticprovider/auth",
+		TokenURL:   "https://staticprovider/token",
+		JWKSURL:    "https://staticprovider/jwks",
+		Algorithms: []string{"RS256"},
+	}
+
+	pluginConfig.Issuer = "http://staticprovider"
+	pluginConfig.ClientID = "client"
+	pluginConfig.ClientSecret = "secret"
+	pluginConfig.RedirectURI = "http://localhost/callback"
+	pluginConfig.PostLogoutRedirectURI = "http://localhost/postlogout"
+	pluginConfig.ConsumerName = "oidcuser"
+	pluginConfig.StaticProviderConfig = providerConfig
+
+	mockKong := NewMockKong(t)
+	ignoreLogCalls(mockKong)
+
+	mockKong.On("RequestGetHeaders", -1).Return(map[string][]string{}, nil)
+	mockKong.On("RequestGetPath").Return("/secretplace", nil)
+
+	var locationHeaderValue string
+
+	mockKong.EXPECT().ResponseAddHeader("Set-Cookie", mock.AnythingOfType("string")).Return(nil)
+	mockKong.EXPECT().ResponseSetHeader("Cache-Control", "no-store").Return(nil)
+	mockKong.EXPECT().ResponseSetHeader("Location", mock.AnythingOfType("string")).Run(func(_, v string) {
+		locationHeaderValue = v
+	}).Return(nil)
+	mockKong.EXPECT().ResponseExitStatus(http.StatusFound)
+
+	pluginConfig.AccessWithInterface(mockKong)
+
+	assert.True(t, strings.HasPrefix(locationHeaderValue, "https://staticprovider/auth"))
+}

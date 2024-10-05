@@ -78,6 +78,9 @@ type Config struct {
 	UsePKCE      bool     `json:"use_pkce"`
 	UseUserInfo  bool     `json:"use_userinfo"`
 
+	// Static OIDC provider configuration to skip discovery
+	StaticProviderConfig ProviderConfig `json:"static_provider_config"`
+
 	// Bearer JWT Auth
 	BearerJWTAllowedAuds []string `json:"bearer_jwt_allowed_auds"`
 	BearerJWTAllowedAlgs []string `json:"bearer_jwt_allowed_algs" validate:"required,min=1"`
@@ -95,6 +98,14 @@ type Config struct {
 	HeadersFromClaims       map[string]string `json:"headers_from_claims"`
 	SkipAlreadyAuth         bool              `json:"skip_already_auth"`
 	ConsumerName            string            `json:"consumer_name"            validate:"required"`
+}
+
+type ProviderConfig struct {
+	AuthURL     string   `json:"authorization_endpoint"                validate:"required_with=TokenURL,omitempty,http_url"`
+	TokenURL    string   `json:"token_endpoint"                        validate:"required_with=AuthURL,omitempty,http_url"`
+	UserInfoURL string   `json:"userinfo_endpoint"                     validate:"omitempty,http_url"`
+	JWKSURL     string   `json:"jwks_uri"                              validate:"required_with=AuthURL TokenURL UserInfoURL Algorithms,omitempty,http_url"` //nolint:lll
+	Algorithms  []string `json:"id_token_signing_alg_values_supported" validate:"required_with=JWKSURL,omitempty,min=1"`
 }
 
 // AuthState holds the state of an ongoing OIDC Authorization Code flow (from redirect to callback).
@@ -302,18 +313,36 @@ func newContextWithOidcHTTPClient() context.Context {
 }
 
 // Return OIDC provider instance for the given issuer, either from cache or by creating a new one.
-func getOIDCProvider(kong Kong, issuer string) (*oidc.Provider, error) {
-	item := oidcProviderCache.Get(issuer)
+func getOIDCProvider(kong Kong, issuer string, manualProviderConfig *ProviderConfig) (*oidc.Provider, error) {
+	cacheKey := fmt.Sprintf("%v/%#v", issuer, manualProviderConfig)
+
+	item := oidcProviderCache.Get(cacheKey)
 
 	if item == nil {
-		provider, err := oidc.NewProvider(newContextWithOidcHTTPClient(), issuer)
-		if err != nil {
-			return nil, fmt.Errorf("OIDC provider initialization failed: %w", err)
+		var provider *oidc.Provider
+
+		if manualProviderConfig.JWKSURL != "" {
+			providerConfig := oidc.ProviderConfig{
+				IssuerURL:   issuer,
+				AuthURL:     manualProviderConfig.AuthURL,
+				TokenURL:    manualProviderConfig.TokenURL,
+				UserInfoURL: manualProviderConfig.UserInfoURL,
+				JWKSURL:     manualProviderConfig.JWKSURL,
+				Algorithms:  manualProviderConfig.Algorithms,
+			}
+			provider = providerConfig.NewProvider(newContextWithOidcHTTPClient())
+		} else {
+			var err error
+
+			provider, err = oidc.NewProvider(newContextWithOidcHTTPClient(), issuer)
+			if err != nil {
+				return nil, fmt.Errorf("OIDC provider initialization failed: %w", err)
+			}
 		}
 
-		kong.LogInfo(fmt.Sprintf("Discovered OIDC provider endpoints: %+v", provider.Endpoint()))
+		kong.LogInfo(fmt.Sprintf("OIDC provider endpoints: %+v", provider.Endpoint()))
 
-		item = oidcProviderCache.Set(issuer, provider, ttlcache.DefaultTTL)
+		item = oidcProviderCache.Set(cacheKey, provider, ttlcache.DefaultTTL)
 	}
 
 	return item.Value(), nil
@@ -979,7 +1008,7 @@ func (conf Config) AccessWithInterface(kong Kong) {
 		}
 	}
 
-	provider, err := getOIDCProvider(kong, conf.Issuer)
+	provider, err := getOIDCProvider(kong, conf.Issuer, &conf.StaticProviderConfig)
 	if err != nil {
 		kong.LogCrit(fmt.Sprintf("Unable to initialize OIDC provider: %v", err))
 		kong.ResponseExitStatus(http.StatusInternalServerError)
