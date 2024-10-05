@@ -312,25 +312,16 @@ func newContextWithOidcHTTPClient() context.Context {
 	return oidc.ClientContext(context.Background(), oidcHTTPClient)
 }
 
-func createProviderCacheKey(issuer string, manualProviderConfig *ProviderConfig) string {
-	cacheKey := issuer
-	if manualProviderConfig != nil {
-		cacheKey += fmt.Sprintf("/%#v", manualProviderConfig)
-	}
-
-	return cacheKey
-}
-
 // Return OIDC provider instance for the given issuer, either from cache or by creating a new one.
 func getOIDCProvider(kong Kong, issuer string, manualProviderConfig *ProviderConfig) (*oidc.Provider, error) {
-	cacheKey := createProviderCacheKey(issuer, manualProviderConfig)
+	cacheKey := fmt.Sprintf("%v/%#v", issuer, manualProviderConfig)
 
 	item := oidcProviderCache.Get(cacheKey)
 
 	if item == nil {
 		var provider *oidc.Provider
 
-		if manualProviderConfig != nil {
+		if manualProviderConfig.JWKSURL != "" {
 			providerConfig := oidc.ProviderConfig{
 				IssuerURL:   issuer,
 				AuthURL:     manualProviderConfig.AuthURL,
