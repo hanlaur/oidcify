@@ -605,3 +605,26 @@ func TestStaticProviderConfig(t *testing.T) {
 
 	assert.True(t, strings.HasPrefix(locationHeaderValue, "https://staticprovider/auth"))
 }
+
+func TestLoadCustomCAs(t *testing.T) {
+	mockKong := NewMockKong(t)
+	ignoreLogCalls(mockKong)
+
+	providerConfig := ProviderConfig{
+		AuthURL:    "https://staticprovider/auth",
+		TokenURL:   "https://staticprovider/token",
+		JWKSURL:    "https://staticprovider/jwks",
+		Algorithms: []string{"RS256"},
+	}
+
+	var err error
+
+	_, err = getOIDCProvider(mockKong, "https://dummyissuer1", &providerConfig, []string{"test-resources/dummy-ca-ok.crt"})
+	require.NoError(t, err)
+
+	_, err = getOIDCProvider(mockKong, "https://dummyissuer1", &providerConfig, []string{"test-resources/file-does-not-exist.crt"})
+	require.Error(t, err)
+
+	_, err = getOIDCProvider(mockKong, "https://dummyissuer1", &providerConfig, []string{"test-resources/dummy-ca-bad.crt"})
+	require.Error(t, err)
+}
