@@ -47,6 +47,7 @@ Plugin supports the following configuration inputs:
 | `consumer_name`            | Defines the Kong Consumer that will be set as authenticated consumer for a successful request. Example: `oidcuser`. The consumer must be defined in Kong.                                                                          |                          | x        |
 | `cookie_hash_key_hex`      | Secret key used for cookie HMAC authentication. Must be cryptographically strong, 32 hex characters (256 bits). This value must be kept secret. If not set, random value is generated at startup.                                  | randomized on startup    | See note |
 | `cookie_block_key_hex`     | Secret key used for cookie encryption. Must be cryptographically strong, 32 hex characters (256 bits). This value must be kept secret. If not set, random value is generated at startup.                                           | randomized on startup    | See note |
+| `ca_cert_files`            | Array of PEM files to load as accepted TLS CA certificates. Example: `["/etc/oidcify/tlsca/internalca.pem"]`. If not defined, then system certificate pool is used.                                                                |                          |          |
 | `static_provider_config`   | If defined, instead of OIDC discovery, configuration from this dictionary parameter is used. Dictionary keys: `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, `jwks_uri`, `id_token_signing_alg_values_supported` |                          |          |
 | `groups_claim`             | Name of the ID token claim to retrieve user group memberships from. Claim must contain an array of string values. Groups are passed to other plugins via Kong context `authenticated_groups` variable.                             | `groups`                 |          |
 | `scopes`                   | The scopes to request in the authorization code flow. You must include `openid` as one of the values. Example: `["openid", "profile", "email", "groups"]`                                                                          | `["openid"]`             |          |
@@ -86,7 +87,6 @@ database, consider the following:
 * Session cookie size can grow large depending on amount of data contained in OIDC tokens or OIDC UserInfo.
   The plugin automatically splits the data in multiple cookies if required, but you may need to allow larger
   size of HTTP headers in Kong and in the upstream service.
-
 
 ## Development notes
 

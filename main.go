@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"slices"
 	"strconv"
@@ -57,14 +60,15 @@ var (
 	validate        = validator.New(validator.WithRequiredStructEnabled())
 )
 
-// oidcProviderCache caches OIDC provider, avoiding repeated discovery and JWKS requests.
-var oidcProviderCache *ttlcache.Cache[string, *oidc.Provider] = ttlcache.New[string, *oidc.Provider](
-	ttlcache.WithTTL[string, *oidc.Provider](time.Second*oidcProviderCacheTimeSecs),
-	ttlcache.WithDisableTouchOnHit[string, *oidc.Provider]())
-
-var oidcHTTPClient = &http.Client{
-	Timeout: time.Second * httpClientTimeoutSecs,
+type OIDCProvider struct {
+	Provider   *oidc.Provider
+	HTTPClient *http.Client
 }
+
+// oidcProviderCache caches OIDC provider, avoiding repeated discovery and JWKS requests.
+var oidcProviderCache *ttlcache.Cache[string, *OIDCProvider] = ttlcache.New[string, *OIDCProvider](
+	ttlcache.WithTTL[string, *OIDCProvider](time.Second*oidcProviderCacheTimeSecs),
+	ttlcache.WithDisableTouchOnHit[string, *OIDCProvider]())
 
 // Config defines the plugin configuration that user can provide.
 type Config struct {
@@ -77,6 +81,7 @@ type Config struct {
 	Scopes       []string `json:"scopes"        validate:"required"`
 	UsePKCE      bool     `json:"use_pkce"`
 	UseUserInfo  bool     `json:"use_userinfo"`
+	CACertFiles  []string `json:"ca_cert_files"`
 
 	// Static OIDC provider configuration to skip discovery
 	StaticProviderConfig ProviderConfig `json:"static_provider_config"`
@@ -306,19 +311,50 @@ func deleteSession(kong Kong, requestCookies []*http.Cookie, sessionCookieName s
 	return setCookies(kong, "", sessionCookieName, requestCookies)
 }
 
+func createHTTPClient(caCertFiles []string) (*http.Client, error) {
+	transport := http.DefaultTransport.(*http.Transport).Clone() //nolint: forcetypeassert
+	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+
+	if len(caCertFiles) > 0 {
+		certPool := x509.NewCertPool()
+
+		for _, caCertFile := range caCertFiles {
+			caCert, err := os.ReadFile(caCertFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read CA cert file: %w", err)
+			}
+
+			if !certPool.AppendCertsFromPEM(caCert) {
+				return nil, fmt.Errorf("could not load PEM certs from %v", caCertFile)
+			}
+
+			transport.TLSClientConfig.RootCAs = certPool
+		}
+	}
+
+	client := &http.Client{Transport: transport, Timeout: httpClientTimeoutSecs * time.Second}
+
+	return client, nil
+}
+
 // Return new background context that carries a HTTP client that OIDC/oauth library will use
 // for HTTP requests towards the OIDC provider.
-func newContextWithOidcHTTPClient() context.Context {
-	return oidc.ClientContext(context.Background(), oidcHTTPClient)
+func newContextWithOidcHTTPClient(httpClient *http.Client) context.Context {
+	return oidc.ClientContext(context.Background(), httpClient)
 }
 
 // Return OIDC provider instance for the given issuer, either from cache or by creating a new one.
-func getOIDCProvider(kong Kong, issuer string, manualProviderConfig *ProviderConfig) (*oidc.Provider, error) {
-	cacheKey := fmt.Sprintf("%v/%#v", issuer, manualProviderConfig)
+func getOIDCProvider(kong Kong, issuer string, manualProviderConfig *ProviderConfig, caCertFiles []string) (*OIDCProvider, error) {
+	cacheKey := fmt.Sprintf("%v/%#v/%v", issuer, manualProviderConfig, caCertFiles)
 
 	item := oidcProviderCache.Get(cacheKey)
 
-	if item == nil {
+	if item == nil { //nolint:nestif
+		httpClient, err := createHTTPClient(caCertFiles)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create HTTP client: %w", err)
+		}
+
 		var provider *oidc.Provider
 
 		if manualProviderConfig.JWKSURL != "" {
@@ -330,11 +366,11 @@ func getOIDCProvider(kong Kong, issuer string, manualProviderConfig *ProviderCon
 				JWKSURL:     manualProviderConfig.JWKSURL,
 				Algorithms:  manualProviderConfig.Algorithms,
 			}
-			provider = providerConfig.NewProvider(newContextWithOidcHTTPClient())
+			provider = providerConfig.NewProvider(newContextWithOidcHTTPClient(httpClient))
 		} else {
 			var err error
 
-			provider, err = oidc.NewProvider(newContextWithOidcHTTPClient(), issuer)
+			provider, err = oidc.NewProvider(newContextWithOidcHTTPClient(httpClient), issuer)
 			if err != nil {
 				return nil, fmt.Errorf("OIDC provider initialization failed: %w", err)
 			}
@@ -342,7 +378,9 @@ func getOIDCProvider(kong Kong, issuer string, manualProviderConfig *ProviderCon
 
 		kong.LogInfo(fmt.Sprintf("OIDC provider endpoints: %+v", provider.Endpoint()))
 
-		item = oidcProviderCache.Set(cacheKey, provider, ttlcache.DefaultTTL)
+		oidcProvider := &OIDCProvider{Provider: provider, HTTPClient: httpClient}
+
+		item = oidcProviderCache.Set(cacheKey, oidcProvider, ttlcache.DefaultTTL)
 	}
 
 	return item.Value(), nil
@@ -588,13 +626,13 @@ func verifyIDTokenCommon(idToken *oidc.IDToken) error {
 }
 
 // authSessionVerifyIDToken verifies the ID token, session expiry and returns the ID token claim if successful.
-func authSessionVerifyIDToken(conf Config, session *SessionData, provider *oidc.Provider) (map[string]any, error) {
+func authSessionVerifyIDToken(conf Config, session *SessionData, oidcProvider *OIDCProvider) (map[string]any, error) {
 	// If session lifetime is configured, skip expiry check by the verifier as this functon will check it separately.
 	skipVerifierExpiryCheck := conf.SessionLifetimeSeconds > 0
 
-	verifier := provider.Verifier(&oidc.Config{ClientID: conf.ClientID, SkipExpiryCheck: skipVerifierExpiryCheck})
+	verifier := oidcProvider.Provider.Verifier(&oidc.Config{ClientID: conf.ClientID, SkipExpiryCheck: skipVerifierExpiryCheck})
 
-	idToken, err := verifier.Verify(newContextWithOidcHTTPClient(), session.RawIDToken)
+	idToken, err := verifier.Verify(newContextWithOidcHTTPClient(oidcProvider.HTTPClient), session.RawIDToken)
 	if err != nil {
 		return nil, fmt.Errorf("ID token verification failed: %w", err)
 	}
@@ -654,7 +692,7 @@ func authSessionURILogout(
 func authSessionURIRedirect(
 	kong Kong,
 	conf Config,
-	provider *oidc.Provider,
+	oidcProvider *OIDCProvider,
 	sCookie *securecookie.SecureCookie,
 	requestCookies []*http.Cookie,
 ) error {
@@ -662,7 +700,7 @@ func authSessionURIRedirect(
 
 	session := getSession(kong, sCookie, requestCookies, conf.CookieName)
 
-	oauth2Config := getOauth2Config(&conf, provider)
+	oauth2Config := getOauth2Config(&conf, oidcProvider.Provider)
 
 	if time.Now().After(session.OngoingAuth.ValidUntil) {
 		kong.LogErr("Received callback when authentication not in progress or auth took too long")
@@ -716,7 +754,7 @@ func authSessionURIRedirect(
 		opts = append(opts, oauth2.VerifierOption(session.OngoingAuth.PKCECodeVerifier))
 	}
 
-	oauth2token, err := oauth2Config.Exchange(newContextWithOidcHTTPClient(), code, opts...)
+	oauth2token, err := oauth2Config.Exchange(newContextWithOidcHTTPClient(oidcProvider.HTTPClient), code, opts...)
 	if err != nil {
 		return fmt.Errorf("authorization code to token exchange failed: %w", err)
 	}
@@ -728,7 +766,7 @@ func authSessionURIRedirect(
 
 	session.RawIDToken = rawIDToken
 
-	idTokenClaims, err := authSessionVerifyIDToken(conf, session, provider)
+	idTokenClaims, err := authSessionVerifyIDToken(conf, session, oidcProvider)
 	if err != nil {
 		return fmt.Errorf("session validation failed when processing callback: %w", err)
 	}
@@ -740,7 +778,7 @@ func authSessionURIRedirect(
 	if conf.UseUserInfo {
 		oAuth2TokenSource := oauth2.StaticTokenSource(oauth2token)
 
-		userInfo, err := provider.UserInfo(newContextWithOidcHTTPClient(), oAuth2TokenSource)
+		userInfo, err := oidcProvider.Provider.UserInfo(newContextWithOidcHTTPClient(oidcProvider.HTTPClient), oAuth2TokenSource)
 		if err != nil {
 			return fmt.Errorf("retrieving userinfo failed: %w", err)
 		}
@@ -787,7 +825,7 @@ func authSessionURIRegular(
 	sCookie *securecookie.SecureCookie,
 	requestCookies []*http.Cookie,
 	requestPath string,
-	provider *oidc.Provider,
+	oidcProvider *OIDCProvider,
 ) error {
 	var err error
 
@@ -797,7 +835,7 @@ func authSessionURIRegular(
 		// ID token was validated already when handling the callback, and the session data is stored in
 		// encrypted cookie, so except for expiry check, revalidation may be redundant. However
 		// revalidation can reduce impact should the cookie encryption be compromised.
-		idTokenClaims, err := authSessionVerifyIDToken(conf, session, provider)
+		idTokenClaims, err := authSessionVerifyIDToken(conf, session, oidcProvider)
 
 		if err == nil {
 			err = setServiceData(idTokenClaims, session.UserInfoClaims, conf, kong)
@@ -844,7 +882,7 @@ func authSessionURIRegular(
 		ValidUntil:       time.Now().Add(time.Second * maxAuthCodeFlowDurationSecs),
 	}
 
-	oauth2Config := getOauth2Config(&conf, provider)
+	oauth2Config := getOauth2Config(&conf, oidcProvider.Provider)
 
 	var opts []oauth2.AuthCodeOption
 
@@ -881,7 +919,7 @@ func authSessionURIRegular(
 // authSession implements session-based authentication processing using the OIDC Authorization Code flow.
 // Returns nil if request was successfully handled, error if not. Successful handling of request does not
 // mean that the user is authenticated.
-func authSession(kong Kong, conf Config, provider *oidc.Provider) error {
+func authSession(kong Kong, conf Config, provider *OIDCProvider) error {
 	sCookie, err := getSecureCookie(conf.CookieHashKeyHex, conf.CookieBlockKeyHex)
 	if err != nil {
 		return fmt.Errorf("unable to initialize secure cookie interface: %w", err)
@@ -919,7 +957,7 @@ func authSession(kong Kong, conf Config, provider *oidc.Provider) error {
 
 // authBearerToken implements Bearer JWT token authentication processing
 // Returns true if authentication was successfully completed, false if not.
-func authBearerToken(kong Kong, conf Config, provider *oidc.Provider) (bool, error) {
+func authBearerToken(kong Kong, conf Config, oidcProvider *OIDCProvider) (bool, error) {
 	if len(conf.BearerJWTAllowedAuds) == 0 {
 		return false, nil
 	}
@@ -941,9 +979,9 @@ func authBearerToken(kong Kong, conf Config, provider *oidc.Provider) (bool, err
 		return false, nil
 	}
 
-	verifier := provider.Verifier(&oidc.Config{SkipClientIDCheck: true, SupportedSigningAlgs: conf.BearerJWTAllowedAlgs})
+	verifier := oidcProvider.Provider.Verifier(&oidc.Config{SkipClientIDCheck: true, SupportedSigningAlgs: conf.BearerJWTAllowedAlgs})
 
-	idToken, err := verifier.Verify(newContextWithOidcHTTPClient(), credentials)
+	idToken, err := verifier.Verify(newContextWithOidcHTTPClient(oidcProvider.HTTPClient), credentials)
 	if err != nil {
 		kong.LogWarn(fmt.Sprintf("Bearer JWT token verification failed: %v", err))
 
@@ -1008,7 +1046,7 @@ func (conf Config) AccessWithInterface(kong Kong) {
 		}
 	}
 
-	provider, err := getOIDCProvider(kong, conf.Issuer, &conf.StaticProviderConfig)
+	provider, err := getOIDCProvider(kong, conf.Issuer, &conf.StaticProviderConfig, conf.CACertFiles)
 	if err != nil {
 		kong.LogCrit(fmt.Sprintf("Unable to initialize OIDC provider: %v", err))
 		kong.ResponseExitStatus(http.StatusInternalServerError)
