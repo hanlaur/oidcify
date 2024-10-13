@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -101,6 +103,8 @@ type Config struct {
 	LogoutPath              string            `json:"logout_path"              validate:"required"`
 	PostLogoutRedirectURI   string            `json:"post_logout_redirect_uri" validate:"omitempty,http_url"`
 	HeadersFromClaims       map[string]string `json:"headers_from_claims"`
+	IDTokenClaimsHeader     string            `json:"id_token_claims_header"`
+	UserInfoClaimsHeader    string            `json:"userinfo_claims_header"`
 	SkipAlreadyAuth         bool              `json:"skip_already_auth"`
 	ConsumerName            string            `json:"consumer_name"            validate:"required"`
 }
@@ -483,6 +487,26 @@ func setServiceDataHeadersFromClaims(conf Config, idTokenClaims map[string]any, 
 			if err := kong.ServiceRequestClearHeader(header); err != nil {
 				return fmt.Errorf("failed to clear header %v: %w", header, err)
 			}
+		}
+	}
+
+	for claimsHeader, claims := range map[string]map[string]any{
+		conf.IDTokenClaimsHeader:  idTokenClaims,
+		conf.UserInfoClaimsHeader: userInfoClaims,
+	} {
+		if claimsHeader == "" {
+			continue
+		}
+
+		claimsJSON, err := json.Marshal(claims)
+		if err != nil {
+			return fmt.Errorf("unable to marshal claims for header %v. Claims %#v: %w", claimsHeader, claims, err)
+		}
+
+		claimsJSONBase64 := base64.StdEncoding.EncodeToString(claimsJSON)
+
+		if err := kong.ServiceRequestSetHeader(claimsHeader, claimsJSONBase64); err != nil {
+			return fmt.Errorf("failed to set header %v: %w", claimsHeader, err)
 		}
 	}
 

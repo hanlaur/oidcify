@@ -21,11 +21,14 @@ plugins:
       client_secret: $OIDC_CLIENT_SECRET
       groups_claim: $OIDC_GROUPS_CLAIM
       use_pkce: $OIDC_USE_PKCE
+      use_userinfo: true
       redirect_uri: http://localhost:8000/cb
       logout_path: /logout
       headers_from_claims:
         x-oidc-email: email
         x-oidc-sub: sub
+      id_token_claims_header: x-oidc-id-token
+      userinfo_claims_header: x-oidc-userinfo
       redirect_unauthenticated: true
       #session_lifetime_seconds: 900
       skip_already_auth: true
