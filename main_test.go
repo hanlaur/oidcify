@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -58,6 +59,8 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 		"X-Oidc-Pref-User":      "preferred_username",
 		"X-Oidc-NotInToken":     "not_in_token",
 	}
+	pluginConfig.IDTokenClaimsHeader = "X-Oidc-Id-Token"
+	pluginConfig.UserInfoClaimsHeader = "X-Oidc-Userinfo"
 
 	t.Run("Kong API error", func(t *testing.T) {
 		mock := NewMockKong(t)
@@ -200,6 +203,34 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 			mockKongSecure.EXPECT().ServiceRequestSetHeader("X-Oidc-Sub", "1234567890").Return(nil)
 			mockKongSecure.EXPECT().ServiceRequestClearHeader("X-Oidc-NotInToken").Return(nil)
 			mockKongSecure.EXPECT().ServiceRequestSetHeader("X-Oidc-Pref-User", "m%F6nkij%E4").Return(nil)
+
+			mockKongSecure.EXPECT().ServiceRequestSetHeader("X-Oidc-Id-Token", mock.AnythingOfType("string")).Run(func(_, v string) {
+				decodedBytes, err := base64.StdEncoding.DecodeString(v)
+				require.NoError(t, err)
+
+				var idTokenClaims map[string]any
+				err = json.Unmarshal(decodedBytes, &idTokenClaims)
+				require.NoError(t, err)
+
+				assert.Equal(t, "jane.doe@example.com", idTokenClaims["email"])
+
+				if numOfGroups > 0 {
+					groups, ok := idTokenClaims["groups"].([]any)
+					require.True(t, ok)
+					assert.Len(t, groups, numOfGroups)
+				}
+			}).Return(nil)
+
+			mockKongSecure.EXPECT().ServiceRequestSetHeader("X-Oidc-Userinfo", mock.AnythingOfType("string")).Run(func(_, v string) {
+				decodedBytes, err := base64.StdEncoding.DecodeString(v)
+				require.NoError(t, err)
+
+				var userInfoClaims map[string]any
+				err = json.Unmarshal(decodedBytes, &userInfoClaims)
+				require.NoError(t, err)
+
+				assert.Equal(t, "jane.doe@example.com", userInfoClaims["email"])
+			}).Return(nil)
 
 			consumer := entities.Consumer{
 				Id:       "ffe30af5-d167-519a-8bdc-2fa89a3aa280",
