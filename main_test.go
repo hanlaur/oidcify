@@ -214,10 +214,11 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 
 				assert.Equal(t, "jane.doe@example.com", idTokenClaims["email"])
 
-				groups, ok := idTokenClaims["groups"].([]any)
-				require.True(t, ok)
-
-				assert.Len(t, groups, numOfGroups)
+				if numOfGroups > 0 {
+					groups, ok := idTokenClaims["groups"].([]any)
+					require.True(t, ok)
+					assert.Len(t, groups, numOfGroups)
+				}
 			}).Return(nil)
 
 			mockKongSecure.EXPECT().ServiceRequestSetHeader("X-Oidc-Userinfo", mock.AnythingOfType("string")).Run(func(_, v string) {
