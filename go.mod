@@ -8,7 +8,7 @@ require (
 	github.com/go-playground/validator/v10 v10.23.0
 	github.com/gorilla/securecookie v1.1.2
 	github.com/jellydator/ttlcache/v3 v3.3.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	golang.org/x/oauth2 v0.24.0
 )
 
