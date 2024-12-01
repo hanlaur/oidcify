@@ -5,7 +5,7 @@ go 1.23.2
 require (
 	github.com/Kong/go-pdk v0.11.0
 	github.com/coreos/go-oidc/v3 v3.11.0
-	github.com/go-playground/validator/v10 v10.22.1
+	github.com/go-playground/validator/v10 v10.23.0
 	github.com/gorilla/securecookie v1.1.2
 	github.com/jellydator/ttlcache/v3 v3.3.0
 	github.com/stretchr/testify v1.9.0
