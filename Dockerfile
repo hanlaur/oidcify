@@ -1,4 +1,4 @@
-FROM kong:3.8.0
+FROM kong:3.9.0
 COPY oidcify /usr/local/bin/
 COPY README.md NOTICE LICENSE /usr/local/share/doc/oidcify/
 COPY component_licenses /usr/local/share/doc/oidcify/component_licenses
