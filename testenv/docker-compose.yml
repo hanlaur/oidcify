@@ -16,7 +16,7 @@ services:
     image: 'kennethreitz/httpbin'
 
   kong:
-    image: 'kong:3.8.0'
+    image: 'kong:3.9.0'
     environment:
       - KONG_DATABASE=off
       - KONG_PLUGINS=bundled,oidcify
