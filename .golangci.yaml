@@ -3,8 +3,6 @@ linters:
   enable-all: true
   disable:
     # Avoid deprecation warnings
-    - execinquery
-    - gomnd
     - exportloopref
     # Disabled for other reason
     - tagliatelle
