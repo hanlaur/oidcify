@@ -35,7 +35,7 @@ jobs:
       - name: go build
         run: go build -v ./...
 
-      - uses: hoverkraft-tech/compose-action@v2.0.2
+      - uses: hoverkraft-tech/compose-action@v2.2.0
         with:
           cwd: ${{ github.workspace }}/testenv
 
