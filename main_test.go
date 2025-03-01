@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
@@ -321,7 +320,7 @@ func TestBearerJWTOKAndExpired(t *testing.T) {
 	}
 	mockOidcServer.QueueUser(user)
 
-	provider, err := oidc.NewProvider(context.Background(), cfg.Issuer)
+	provider, err := oidc.NewProvider(t.Context(), cfg.Issuer)
 	require.NoError(t, err)
 
 	oauth2Config := oauth2.Config{
@@ -352,7 +351,7 @@ func TestBearerJWTOKAndExpired(t *testing.T) {
 
 	code := parsedCBLoc.Query().Get("code")
 
-	token, err := oauth2Config.Exchange(context.Background(), code,
+	token, err := oauth2Config.Exchange(t.Context(), code,
 		oauth2.VerifierOption(pkceVerifier))
 	require.NoError(t, err)
 

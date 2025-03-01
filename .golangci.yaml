@@ -3,7 +3,7 @@ linters:
   enable-all: true
   disable:
     # Avoid deprecation warnings
-    - exportloopref
+    - tenv
     # Disabled for other reason
     - tagliatelle
     - gci
