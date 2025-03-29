@@ -999,7 +999,7 @@ func authBearerToken(kong Kong, conf Config, oidcProvider *OIDCProvider) (bool, 
 	authScheme := authHeaderParts[0]
 	credentials := strings.Trim(authHeaderParts[1], " ")
 
-	if !(strings.ToLower(authScheme) == "bearer" && len(credentials) > 0) {
+	if !(strings.ToLower(authScheme) == "bearer" && len(credentials) > 0) { //nolint:staticcheck
 		return false, nil
 	}
 

@@ -1,24 +1,40 @@
-
+version: "2"
 linters:
-  enable-all: true
+  default: all
   disable:
-    # Avoid deprecation warnings
-    - tenv
-    # Disabled for other reason
-    - tagliatelle
-    - gci
-    - gochecknoglobals
+    - cyclop
+    - depguard
     - err113
     - exhaustruct
-    - depguard
-    - paralleltest
-    - cyclop
     - funlen
-
-linters-settings:
-  lll:
-    line-length: 132
-
-issues:
-  exclude:
-    - Error return value of `kong.Log.*` is not checked
+    - gochecknoglobals
+    - paralleltest
+    - tagliatelle
+  settings:
+    lll:
+      line-length: 132
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - path: (.+)\.go$
+        text: Error return value of `kong.Log.*` is not checked
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
