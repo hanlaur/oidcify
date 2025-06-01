@@ -12,7 +12,7 @@ permissions:
   checks: write
 
 env:
-  GOLANGCI_LINT_VERSION: v2.0.2
+  GOLANGCI_LINT_VERSION: v2.1.6
 
 jobs:
   test:
