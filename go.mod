@@ -7,7 +7,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.14.1
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/gorilla/securecookie v1.1.2
-	github.com/jellydator/ttlcache/v3 v3.3.0
+	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/oauth2 v0.30.0
 )
@@ -23,16 +23,16 @@ require (
 
 require (
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.1 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/oauth2-proxy/mockoidc v0.0.0-20240214162133-caebfff84d25
-	github.com/ugorji/go/codec v1.2.14 // indirect
-	golang.org/x/crypto v0.38.0 // indirect
-	golang.org/x/net v0.40.0 // indirect
-	golang.org/x/sync v0.14.0 // indirect
+	github.com/ugorji/go/codec v1.3.0 // indirect
+	golang.org/x/crypto v0.39.0 // indirect
+	golang.org/x/net v0.41.0 // indirect
+	golang.org/x/sync v0.15.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.25.0 // indirect
+	golang.org/x/text v0.26.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
