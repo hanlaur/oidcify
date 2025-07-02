@@ -5,7 +5,7 @@ go 1.24.4
 require (
 	github.com/Kong/go-pdk v0.11.0
 	github.com/coreos/go-oidc/v3 v3.14.1
-	github.com/go-playground/validator/v10 v10.26.0
+	github.com/go-playground/validator/v10 v10.27.0
 	github.com/gorilla/securecookie v1.1.2
 	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/stretchr/testify v1.10.0
