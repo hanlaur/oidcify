@@ -175,7 +175,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 			mockKongCallback.EXPECT().RequestGetHeaders(-1).Return(map[string][]string{
 				"cookie": requestCookies,
 			}, nil)
-			mockKongCallback.EXPECT().RequestGetPathWithQuery().Return(parsedCBLoc.Path+"?"+parsedCBLoc.RawQuery, nil)
+			mockKongCallback.EXPECT().RequestGetPathWithQuery().Return(parsedCBLoc.Path, nil)
 			mockKongCallback.EXPECT().RequestGetQueryArg("code").Return(parsedCBLoc.Query().Get("code"), nil)
 			mockKongCallback.EXPECT().RequestGetQueryArg("state").Return(parsedCBLoc.Query().Get("state"), nil)
 			mockKongCallback.EXPECT().ResponseAddHeader("Set-Cookie", mock.AnythingOfType("string")).Return(nil).Run(func(_, v string) {
@@ -190,7 +190,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 			mockKongSecure := NewMockKong(t)
 			ignoreLogCalls(mockKongSecure)
 
-			mockKongSecure.EXPECT().RequestGetPathWithQuery().Return("/secure", nil)
+			mockKongSecure.EXPECT().RequestGetPathWithQuery().Return("/secure?abcd=1234", nil)
 
 			requestCookies = validateAndConvertOidcCookies(t, oidcCookies)
 			mockKongSecure.EXPECT().RequestGetHeaders(-1).Return(map[string][]string{
