@@ -848,7 +848,7 @@ func authSessionURIRegular(
 	conf Config,
 	sCookie *securecookie.SecureCookie,
 	requestCookies []*http.Cookie,
-	requestPath string,
+	requestPathWithQuery string,
 	oidcProvider *OIDCProvider,
 ) error {
 	var err error
@@ -902,7 +902,7 @@ func authSessionURIRegular(
 		State:            state,
 		PKCECodeVerifier: pkceVerifier,
 		Nonce:            nonce,
-		OriginalURI:      requestPath,
+		OriginalURI:      requestPathWithQuery,
 		ValidUntil:       time.Now().Add(time.Second * maxAuthCodeFlowDurationSecs),
 	}
 
@@ -954,19 +954,19 @@ func authSession(kong Kong, conf Config, provider *OIDCProvider) error {
 		return fmt.Errorf("unable to parse request cookies: %w", err)
 	}
 
-	requestPath, err := kong.RequestGetPath()
+	requestPathWithQuery, err := kong.RequestGetPathWithQuery()
 	if err != nil {
 		return fmt.Errorf("unable to get request path: %w", err)
 	}
 
-	uriType, err := getURIType(&conf, requestPath)
+	uriType, err := getURIType(&conf, requestPathWithQuery)
 	if err != nil {
 		return fmt.Errorf("unable to determine URI type: %w", err)
 	}
 
 	switch uriType {
 	case URITypeRegular:
-		return authSessionURIRegular(kong, conf, sCookie, requestCookies, requestPath, provider)
+		return authSessionURIRegular(kong, conf, sCookie, requestCookies, requestPathWithQuery, provider)
 
 	case URITypeRedirect:
 		return authSessionURIRedirect(kong, conf, provider, sCookie, requestCookies)

@@ -20,7 +20,7 @@ type Kong interface { //nolint:interfacebloat
 	LogInfo(args ...interface{}) error
 	LogDebug(args ...interface{}) error
 
-	RequestGetPath() (string, error)
+	RequestGetPathWithQuery() (string, error)
 	RequestGetHeader(k string) (string, error)
 	RequestGetHeaders(maxHeaders int) (map[string][]string, error)
 	RequestGetQueryArg(k string) (string, error)
@@ -74,8 +74,8 @@ func (kong *KongPDKAdapter) LogDebug(args ...interface{}) error {
 	return kong.PDK.Log.Debug(args...)
 }
 
-func (kong *KongPDKAdapter) RequestGetPath() (string, error) {
-	return kong.PDK.Request.GetPath()
+func (kong *KongPDKAdapter) RequestGetPathWithQuery() (string, error) {
+	return kong.PDK.Request.GetPathWithQuery()
 }
 
 func (kong *KongPDKAdapter) RequestGetHeader(k string) (string, error) {
