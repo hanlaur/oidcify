@@ -401,6 +401,7 @@ func getURIType(conf *Config, requestPathWithQuery string) (URIType, error) {
 	parsedRequestPath, err := url.Parse(requestPathWithQuery)
 	if err != nil {
 		var empty URIType
+
 		return empty, fmt.Errorf("unable to parse request path %v: %w", requestPathWithQuery, err)
 	}
 
