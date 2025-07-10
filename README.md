@@ -125,6 +125,10 @@ defined the OIDC provider you want to use.
 
 See file [NOTICE](NOTICE) for copyright information and file [LICENSE](LICENSE) for license text.
 
+## Contributing to the project
+
+See file [CONTRIBUTING.md](CONTRIBUTING.md) for requirements.
+
 ## Dependencies
 
 Under the hood, this project utilizes many open-source Go dependencies. See [go.mod](go.mod) for a list.
