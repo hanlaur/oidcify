@@ -1,11 +1,19 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -657,4 +665,137 @@ func TestLoadCustomCAs(t *testing.T) {
 
 	_, err = getOIDCProvider(mockKong, "https://dummyissuer1", &providerConfig, []string{"test-resources/dummy-ca-bad.crt"}, false)
 	require.Error(t, err)
+}
+
+func TestInsecureSkipVerify(t *testing.T) {
+	mockKong := NewMockKong(t)
+	ignoreLogCalls(mockKong)
+
+	caPEM, serverCertPEM, serverKeyPEM := generateTestTLSArtifacts(t, "127.0.0.1")
+
+	tmpCAFile, err := os.CreateTemp(t.TempDir(), "test-ca-*.pem")
+	require.NoError(t, err)
+
+	defer os.Remove(tmpCAFile.Name())
+
+	_, err = tmpCAFile.Write(caPEM)
+	require.NoError(t, err)
+
+	err = tmpCAFile.Close()
+	require.NoError(t, err)
+
+	oidcProviderCert, err := tls.X509KeyPair(serverCertPEM, serverKeyPEM)
+	require.NoError(t, err)
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	actualAddr := listener.Addr().String()
+
+	issuer := "https://" + actualAddr
+
+	discoveryDoc := fmt.Sprintf(`{
+		"issuer": "%s",
+		"authorization_endpoint": "%s/auth",
+		"token_endpoint": "%s/token",
+		"jwks_uri": "%s/jwks"
+	}`, issuer, issuer, issuer, issuer)
+
+	// Start a generic HTTPS server using the generated TLS artifacts
+	server := &http.Server{
+		Addr:        actualAddr,
+		ReadTimeout: 60 * time.Second,
+		TLSConfig:   &tls.Config{Certificates: []tls.Certificate{oidcProviderCert}, MinVersion: tls.VersionTLS12},
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(discoveryDoc)) //nolint:errcheck
+		}),
+	}
+
+	go func() {
+		_ = server.ServeTLS(listener, "", "")
+	}()
+
+	defer server.Close()
+
+	// Use correct CA
+	_, err = getOIDCProvider(mockKong, issuer, &ProviderConfig{}, []string{tmpCAFile.Name()}, false)
+	require.NoError(t, err)
+
+	// Use system CA (should fail)
+	_, err = getOIDCProvider(mockKong, issuer, &ProviderConfig{}, nil, false)
+	require.Error(t, err)
+
+	// Use system CA (skip TLS verification)
+	_, err = getOIDCProvider(mockKong, issuer, &ProviderConfig{}, nil, true)
+	require.NoError(t, err)
+}
+
+func generateTestTLSArtifacts(t *testing.T, serverIP string) (caPEM, serverCertPEM, serverKeyPEM []byte) { //nolint:nonamedreturns
+	t.Helper()
+
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	caTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"Test CA Org"},
+			CommonName:   "Test CA",
+		},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+	}
+
+	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	caPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER})
+
+	serverKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ipAddr := net.ParseIP(serverIP)
+	if ipAddr == nil {
+		t.Fatal(err)
+	}
+
+	serverTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject: pkix.Name{
+			Organization: []string{"Test Server Org"},
+			CommonName:   serverIP,
+		},
+		NotBefore:   time.Now().Add(-time.Hour),
+		NotAfter:    time.Now().Add(time.Hour),
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses: []net.IP{ipAddr},
+	}
+
+	serverDER, err := x509.CreateCertificate(rand.Reader, serverTemplate, caTemplate, &serverKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	serverCertPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: serverDER})
+
+	serverKeyBytes, err := x509.MarshalECPrivateKey(serverKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	serverKeyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: serverKeyBytes})
+
+	return caPEM, serverCertPEM, serverKeyPEM
 }
