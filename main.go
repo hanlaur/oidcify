@@ -390,7 +390,7 @@ func getOIDCProvider(kong Kong, issuer string, manualProviderConfig *ProviderCon
 	return item.Value(), nil
 }
 
-func getURIType(conf *Config, requestPath string) (URIType, error) {
+func getURIType(conf *Config, requestPathWithQuery string) (URIType, error) {
 	parsedRedirectURI, err := url.Parse(conf.RedirectURI)
 	if err != nil {
 		var empty URIType
@@ -398,7 +398,13 @@ func getURIType(conf *Config, requestPath string) (URIType, error) {
 		return empty, fmt.Errorf("unable to parse configured redirect URL %v: %w", conf.RedirectURI, err)
 	}
 
-	switch requestPath {
+	parsedRequestPath, err := url.Parse(requestPathWithQuery)
+	if err != nil {
+		var empty URIType
+		return empty, fmt.Errorf("unable to parse request path %v: %w", requestPathWithQuery, err)
+	}
+
+	switch parsedRequestPath.Path {
 	case parsedRedirectURI.Path:
 		return URITypeRedirect, nil
 	case conf.LogoutPath:
