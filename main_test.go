@@ -649,12 +649,12 @@ func TestLoadCustomCAs(t *testing.T) {
 
 	var err error
 
-	_, err = getOIDCProvider(mockKong, "https://dummyissuer1", &providerConfig, []string{"test-resources/dummy-ca-ok.crt"})
+	_, err = getOIDCProvider(mockKong, "https://dummyissuer1", &providerConfig, []string{"test-resources/dummy-ca-ok.crt"}, false)
 	require.NoError(t, err)
 
-	_, err = getOIDCProvider(mockKong, "https://dummyissuer1", &providerConfig, []string{"test-resources/file-does-not-exist.crt"})
+	_, err = getOIDCProvider(mockKong, "https://dummyissuer1", &providerConfig, []string{"test-resources/file-does-not-exist.crt"}, false)
 	require.Error(t, err)
 
-	_, err = getOIDCProvider(mockKong, "https://dummyissuer1", &providerConfig, []string{"test-resources/dummy-ca-bad.crt"})
+	_, err = getOIDCProvider(mockKong, "https://dummyissuer1", &providerConfig, []string{"test-resources/dummy-ca-bad.crt"}, false)
 	require.Error(t, err)
 }
