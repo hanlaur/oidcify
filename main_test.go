@@ -117,7 +117,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 			mockKong.On("RequestGetHeaders", -1).Return(map[string][]string{
 				"cookie": {"OIDCSESSION0=invalid_value_that_cannot_be_decoded"},
 			}, nil)
-			mockKong.On("RequestGetPath").Return("/secretplace", nil)
+			mockKong.On("RequestGetPathWithQuery").Return("/secretplace?abcd=1234", nil)
 
 			var locationHeaderValue string
 
@@ -175,13 +175,13 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 			mockKongCallback.EXPECT().RequestGetHeaders(-1).Return(map[string][]string{
 				"cookie": requestCookies,
 			}, nil)
-			mockKongCallback.EXPECT().RequestGetPath().Return(parsedCBLoc.Path, nil)
+			mockKongCallback.EXPECT().RequestGetPathWithQuery().Return(parsedCBLoc.Path, nil)
 			mockKongCallback.EXPECT().RequestGetQueryArg("code").Return(parsedCBLoc.Query().Get("code"), nil)
 			mockKongCallback.EXPECT().RequestGetQueryArg("state").Return(parsedCBLoc.Query().Get("state"), nil)
 			mockKongCallback.EXPECT().ResponseAddHeader("Set-Cookie", mock.AnythingOfType("string")).Return(nil).Run(func(_, v string) {
 				oidcCookies = append(oidcCookies, v)
 			})
-			mockKongCallback.EXPECT().ResponseSetHeader("Location", "/secretplace").Return(nil)
+			mockKongCallback.EXPECT().ResponseSetHeader("Location", "/secretplace?abcd=1234").Return(nil)
 			mockKongCallback.EXPECT().ResponseSetHeader("Cache-Control", "no-store").Return(nil)
 			mockKongCallback.EXPECT().ResponseExitStatus(http.StatusFound)
 
@@ -190,7 +190,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 			mockKongSecure := NewMockKong(t)
 			ignoreLogCalls(mockKongSecure)
 
-			mockKongSecure.EXPECT().RequestGetPath().Return("/secure", nil)
+			mockKongSecure.EXPECT().RequestGetPathWithQuery().Return("/secure?abcd=1234", nil)
 
 			requestCookies = validateAndConvertOidcCookies(t, oidcCookies)
 			mockKongSecure.EXPECT().RequestGetHeaders(-1).Return(map[string][]string{
@@ -249,7 +249,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 			pluginConfig.AccessWithInterface(mockKongSecure)
 
 			mockKongLogout := NewMockKong(t)
-			mockKongLogout.EXPECT().RequestGetPath().Return("/logout", nil)
+			mockKongLogout.EXPECT().RequestGetPathWithQuery().Return("/logout", nil)
 			mockKongLogout.EXPECT().RequestGetHeaders(-1).Return(map[string][]string{
 				"cookie": requestCookies,
 			}, nil)
@@ -392,7 +392,7 @@ func TestBearerJWTOKAndExpired(t *testing.T) {
 	ignoreLogCalls(mockKong)
 	mockKong.EXPECT().RequestGetHeader("authorization").Return("Bearer "+rawIDToken, nil)
 	mockKong.EXPECT().RequestGetHeaders(-1).Return(map[string][]string{}, nil)
-	mockKong.EXPECT().RequestGetPath().Return("/api/getdata", nil)
+	mockKong.EXPECT().RequestGetPathWithQuery().Return("/api/getdata", nil)
 	mockKong.EXPECT().ResponseSetHeader("Cache-Control", "no-store").Return(nil)
 	mockKong.EXPECT().ResponseExitStatus(http.StatusUnauthorized)
 	pluginConfig.AccessWithInterface(mockKong)
@@ -417,7 +417,7 @@ func TestPostLogoutRedirect(t *testing.T) {
 	mockKong := NewMockKong(t)
 	ignoreLogCalls(mockKong)
 
-	mockKong.EXPECT().RequestGetPath().Return("/logout", nil)
+	mockKong.EXPECT().RequestGetPathWithQuery().Return("/logout", nil)
 	mockKong.EXPECT().RequestGetHeaders(-1).Return(map[string][]string{}, nil)
 	mockKong.EXPECT().ResponseSetHeader("Cache-Control", "no-store").Return(nil)
 	mockKong.EXPECT().ResponseSetHeader("Location", pluginConfig.PostLogoutRedirectURI).Return(nil)
@@ -620,7 +620,7 @@ func TestStaticProviderConfig(t *testing.T) {
 	ignoreLogCalls(mockKong)
 
 	mockKong.On("RequestGetHeaders", -1).Return(map[string][]string{}, nil)
-	mockKong.On("RequestGetPath").Return("/secretplace", nil)
+	mockKong.On("RequestGetPathWithQuery").Return("/secretplace?abcd=1234", nil)
 
 	var locationHeaderValue string
 
