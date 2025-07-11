@@ -356,7 +356,7 @@ func getOIDCProvider(kong Kong,
 	caCertFiles []string,
 	insecureSkipVerify bool,
 ) (*OIDCProvider, error) {
-	cacheKey := fmt.Sprintf("%v/%#v/%v", issuer, manualProviderConfig, caCertFiles)
+	cacheKey := fmt.Sprintf("%v/%#v/%v/%v", issuer, manualProviderConfig, caCertFiles, insecureSkipVerify)
 
 	item := oidcProviderCache.Get(cacheKey)
 
