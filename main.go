@@ -75,15 +75,16 @@ var oidcProviderCache *ttlcache.Cache[string, *OIDCProvider] = ttlcache.New[stri
 // Config defines the plugin configuration that user can provide.
 type Config struct {
 	// OIDC
-	Issuer       string   `json:"issuer"        validate:"required,http_url"`
-	ClientID     string   `json:"client_id"     validate:"required"`
-	ClientSecret string   `json:"client_secret" validate:"required"`
-	RedirectURI  string   `json:"redirect_uri"  validate:"required,http_url"`
-	GroupsClaim  string   `json:"groups_claim"`
-	Scopes       []string `json:"scopes"        validate:"required"`
-	UsePKCE      bool     `json:"use_pkce"`
-	UseUserInfo  bool     `json:"use_userinfo"`
-	CACertFiles  []string `json:"ca_cert_files"`
+	Issuer             string   `json:"issuer"               validate:"required,http_url"`
+	ClientID           string   `json:"client_id"            validate:"required"`
+	ClientSecret       string   `json:"client_secret"        validate:"required"`
+	RedirectURI        string   `json:"redirect_uri"         validate:"required,http_url"`
+	GroupsClaim        string   `json:"groups_claim"`
+	Scopes             []string `json:"scopes"               validate:"required"`
+	UsePKCE            bool     `json:"use_pkce"`
+	UseUserInfo        bool     `json:"use_userinfo"`
+	CACertFiles        []string `json:"ca_cert_files"`
+	InsecureSkipVerify bool     `json:"insecure_skip_verify"`
 
 	// Static OIDC provider configuration to skip discovery
 	StaticProviderConfig ProviderConfig `json:"static_provider_config"`
@@ -315,9 +316,10 @@ func deleteSession(kong Kong, requestCookies []*http.Cookie, sessionCookieName s
 	return setCookies(kong, "", sessionCookieName, requestCookies)
 }
 
-func createHTTPClient(caCertFiles []string) (*http.Client, error) {
+func createHTTPClient(caCertFiles []string, insecureSkipVerify bool) (*http.Client, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone() //nolint: forcetypeassert
 	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	transport.TLSClientConfig.InsecureSkipVerify = insecureSkipVerify
 
 	if len(caCertFiles) > 0 {
 		certPool := x509.NewCertPool()
@@ -348,13 +350,18 @@ func newContextWithOidcHTTPClient(httpClient *http.Client) context.Context {
 }
 
 // Return OIDC provider instance for the given issuer, either from cache or by creating a new one.
-func getOIDCProvider(kong Kong, issuer string, manualProviderConfig *ProviderConfig, caCertFiles []string) (*OIDCProvider, error) {
-	cacheKey := fmt.Sprintf("%v/%#v/%v", issuer, manualProviderConfig, caCertFiles)
+func getOIDCProvider(kong Kong,
+	issuer string,
+	manualProviderConfig *ProviderConfig,
+	caCertFiles []string,
+	insecureSkipVerify bool,
+) (*OIDCProvider, error) {
+	cacheKey := fmt.Sprintf("%v/%#v/%v/%v", issuer, manualProviderConfig, caCertFiles, insecureSkipVerify)
 
 	item := oidcProviderCache.Get(cacheKey)
 
 	if item == nil { //nolint:nestif
-		httpClient, err := createHTTPClient(caCertFiles)
+		httpClient, err := createHTTPClient(caCertFiles, insecureSkipVerify)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create HTTP client: %w", err)
 		}
@@ -1077,7 +1084,7 @@ func (conf Config) AccessWithInterface(kong Kong) {
 		}
 	}
 
-	provider, err := getOIDCProvider(kong, conf.Issuer, &conf.StaticProviderConfig, conf.CACertFiles)
+	provider, err := getOIDCProvider(kong, conf.Issuer, &conf.StaticProviderConfig, conf.CACertFiles, conf.InsecureSkipVerify)
 	if err != nil {
 		kong.LogCrit(fmt.Sprintf("Unable to initialize OIDC provider: %v", err))
 		kong.ResponseExitStatus(http.StatusInternalServerError)
