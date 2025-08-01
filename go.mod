@@ -3,8 +3,8 @@ module github.com/hanlaur/oidcify
 go 1.24.5
 
 require (
-	github.com/Kong/go-pdk v0.11.1
-	github.com/coreos/go-oidc/v3 v3.14.1
+	github.com/Kong/go-pdk v0.11.2
+	github.com/coreos/go-oidc/v3 v3.15.0
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/gorilla/securecookie v1.1.2
 	github.com/jellydator/ttlcache/v3 v3.4.0
@@ -15,7 +15,7 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
-	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
