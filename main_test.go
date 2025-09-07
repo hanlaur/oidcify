@@ -47,6 +47,7 @@ func ignoreLogCalls(mockKong *MockKong) {
 func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 	mockOidcServer, _ := mockoidc.Run()
 	defer mockOidcServer.Shutdown() //nolint:errcheck
+
 	cfg := mockOidcServer.Config()
 
 	pluginConfig, ok := New().(*Config)
@@ -687,7 +688,7 @@ func TestInsecureSkipVerify(t *testing.T) {
 	oidcProviderCert, err := tls.X509KeyPair(serverCertPEM, serverKeyPEM)
 	require.NoError(t, err)
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := net.Listen("tcp", "127.0.0.1:0") //nolint:noctx
 	require.NoError(t, err)
 
 	actualAddr := listener.Addr().String()

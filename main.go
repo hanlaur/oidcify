@@ -874,7 +874,6 @@ func authSessionURIRegular(
 		// encrypted cookie, so except for expiry check, revalidation may be redundant. However
 		// revalidation can reduce impact should the cookie encryption be compromised.
 		idTokenClaims, err := authSessionVerifyIDToken(conf, session, oidcProvider)
-
 		if err == nil {
 			err = setServiceData(idTokenClaims, session.UserInfoClaims, conf, kong)
 			if err != nil {
