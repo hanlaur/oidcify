@@ -10,6 +10,8 @@ linters:
     - gochecknoglobals
     - paralleltest
     - tagliatelle
+    - wsl
+    - noinlineerr
   settings:
     lll:
       line-length: 132
