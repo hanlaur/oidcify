@@ -4,7 +4,7 @@ go 1.25.1
 
 require (
 	github.com/Kong/go-pdk v0.11.2
-	github.com/coreos/go-oidc/v3 v3.16.0
+	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/go-playground/validator/v10 v10.28.0
 	github.com/gorilla/securecookie v1.1.2
 	github.com/jellydator/ttlcache/v3 v3.4.0
