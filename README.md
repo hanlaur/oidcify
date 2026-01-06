@@ -15,7 +15,7 @@ This project is not related to OpenID connect plugin by Kong, Inc.
 
 ## Required Kong version
 
-Kong 3.8.0. Do not use the plugin with older Kong versions.
+Kong 3.8.0 or later. Do not use the plugin with older Kong versions.
 
 ## Installation
 
