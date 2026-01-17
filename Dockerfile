@@ -1,5 +1,6 @@
 FROM kong:3.9.1
-COPY oidcify /usr/local/bin/
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/oidcify /usr/local/bin/
 COPY README.md NOTICE LICENSE /usr/local/share/doc/oidcify/
 COPY component_licenses /usr/local/share/doc/oidcify/component_licenses
 ENV KONG_PLUGINSERVER_NAMES="oidcify"

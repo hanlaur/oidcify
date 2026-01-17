@@ -2,6 +2,11 @@
 build:
 	GOOS=linux go build ./...
 
+.PHONY: docker-build
+docker-build:
+	mkdir -p linux/$$(go env GOHOSTARCH)
+	GOOS=linux GOARCH=$$(go env GOHOSTARCH) go build -o linux/$$(go env GOHOSTARCH)/oidcify ./...
+
 .PHONY: debugbuild
 debugbuild:
 	go build -gcflags="all=-N -l"  ./...
@@ -46,7 +51,7 @@ setup-labels:
 .PHONY: clean
 clean:
 	rm -rf cover.out cover.html
-	rm -rf dist oidcify mocks
+	rm -rf dist oidcify mocks linux
 	rm -rf component_licenses
 
 .PHONY: update-mocks
@@ -59,6 +64,6 @@ license-report:
 	go-licenses save ./... --save_path=component_licenses --force
 
 .PHONY: docker
-docker: build license-report
-	docker build . -t kong-with-oidcify
+docker: docker-build license-report
+	docker buildx build --load . -t kong-with-oidcify
 

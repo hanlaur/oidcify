@@ -20,7 +20,8 @@ builds:
       - arm64
 
 archives:
-  - format: tar.gz
+  - formats:
+      - tar.gz
     files:
       - README.md
       - LICENSE
@@ -28,37 +29,18 @@ archives:
       - component_licenses
     wrap_in_directory: true
 
-dockers:
-  - image_templates:
-      - "ghcr.io/hanlaur/kong:{{.Env.KONG_VER}}-oidcify-{{ .Version }}-amd64"
-    goarch: amd64
-    goos: linux
-    use: buildx
-    build_flag_templates:
+dockers_v2:
+  - images:
+      - "ghcr.io/hanlaur/kong"
+    tags:
+      - "{{.Env.KONG_VER}}-oidcify-{{ .Version }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    flags:
       - "--pull"
-      - "--platform=linux/amd64"
     extra_files:
       - README.md
       - LICENSE
       - NOTICE
       - component_licenses
-
-  - image_templates:
-      - "ghcr.io/hanlaur/kong:{{.Env.KONG_VER}}-oidcify-{{ .Version }}-arm64"
-    goarch: arm64
-    goos: linux
-    use: buildx
-    build_flag_templates:
-      - "--pull"
-      - "--platform=linux/arm64"
-    extra_files:
-      - README.md
-      - LICENSE
-      - NOTICE
-      - component_licenses
-
-docker_manifests:
-  - name_template: "ghcr.io/hanlaur/kong:{{.Env.KONG_VER}}-oidcify-{{ .Version }}"
-    image_templates:
-      - "ghcr.io/hanlaur/kong:{{.Env.KONG_VER}}-oidcify-{{ .Version }}-amd64"
-      - "ghcr.io/hanlaur/kong:{{.Env.KONG_VER}}-oidcify-{{ .Version }}-arm64"
