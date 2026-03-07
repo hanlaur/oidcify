@@ -12,7 +12,7 @@ permissions:
   checks: write
 
 env:
-  GOLANGCI_LINT_VERSION: v2.4.0
+  GOLANGCI_LINT_VERSION: v2.11.1
 
 jobs:
   test:
@@ -56,9 +56,17 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+      - name: Extract Go version from go.mod
+        id: extract-go-version
+        run: |
+          GO_VERSION=$(grep '^go ' go.mod | awk '{print $2}')
+          echo "GO_VERSION=$GO_VERSION" >> $GITHUB_ENV
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20  # v9.2.0
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
-

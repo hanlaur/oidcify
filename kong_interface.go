@@ -10,15 +10,15 @@ import (
 // Kong interface wraps a subset of functions from Kong PDK used by the plugin.
 // Intent is not to change the behavior of the functions, but to allow mocking of the PDK.
 type Kong interface { //nolint:interfacebloat
-	CtxSetShared(k string, value interface{}) error
+	CtxSetShared(k string, value any) error
 
-	LogAlert(args ...interface{}) error
-	LogCrit(args ...interface{}) error
-	LogErr(args ...interface{}) error
-	LogWarn(args ...interface{}) error
-	LogNotice(args ...interface{}) error
-	LogInfo(args ...interface{}) error
-	LogDebug(args ...interface{}) error
+	LogAlert(args ...any) error
+	LogCrit(args ...any) error
+	LogErr(args ...any) error
+	LogWarn(args ...any) error
+	LogNotice(args ...any) error
+	LogInfo(args ...any) error
+	LogDebug(args ...any) error
 
 	RequestGetPathWithQuery() (string, error)
 	RequestGetHeader(k string) (string, error)
@@ -42,35 +42,35 @@ type KongPDKAdapter struct {
 	PDK *pdk.PDK
 }
 
-func (kong *KongPDKAdapter) CtxSetShared(k string, value interface{}) error {
+func (kong *KongPDKAdapter) CtxSetShared(k string, value any) error {
 	return kong.PDK.Ctx.SetShared(k, value)
 }
 
-func (kong *KongPDKAdapter) LogAlert(args ...interface{}) error {
+func (kong *KongPDKAdapter) LogAlert(args ...any) error {
 	return kong.PDK.Log.Alert(args...)
 }
 
-func (kong *KongPDKAdapter) LogCrit(args ...interface{}) error {
+func (kong *KongPDKAdapter) LogCrit(args ...any) error {
 	return kong.PDK.Log.Crit(args...)
 }
 
-func (kong *KongPDKAdapter) LogErr(args ...interface{}) error {
+func (kong *KongPDKAdapter) LogErr(args ...any) error {
 	return kong.PDK.Log.Err(args...)
 }
 
-func (kong *KongPDKAdapter) LogWarn(args ...interface{}) error {
+func (kong *KongPDKAdapter) LogWarn(args ...any) error {
 	return kong.PDK.Log.Warn(args...)
 }
 
-func (kong *KongPDKAdapter) LogNotice(args ...interface{}) error {
+func (kong *KongPDKAdapter) LogNotice(args ...any) error {
 	return kong.PDK.Log.Notice(args...)
 }
 
-func (kong *KongPDKAdapter) LogInfo(args ...interface{}) error {
+func (kong *KongPDKAdapter) LogInfo(args ...any) error {
 	return kong.PDK.Log.Info(args...)
 }
 
-func (kong *KongPDKAdapter) LogDebug(args ...interface{}) error {
+func (kong *KongPDKAdapter) LogDebug(args ...any) error {
 	return kong.PDK.Log.Debug(args...)
 }
 
