@@ -136,7 +136,7 @@ type SessionData struct {
 }
 
 // New returns a new instance of the plugin configuration.
-func New() interface{} {
+func New() any {
 	defaultConfig := Config{
 		GroupsClaim:             "groups",
 		Scopes:                  []string{"openid"},
@@ -210,18 +210,20 @@ func getSession(
 	requestCookies []*http.Cookie,
 	sessionCookieName string,
 ) *SessionData {
-	var sessionCookie string
+	var sessionCookieBuilder strings.Builder
 
 	for i := range maxNumCookies {
 		cookieName := sessionCookieName + strconv.Itoa(i)
 		for _, cookie := range requestCookies {
 			if cookie.Name == cookieName {
-				sessionCookie += cookie.Value
+				sessionCookieBuilder.WriteString(cookie.Value)
 
 				break
 			}
 		}
 	}
+
+	sessionCookie := sessionCookieBuilder.String()
 
 	if sessionCookie != "" {
 		var sessionData SessionData
@@ -442,7 +444,7 @@ func safeHeaderValue(input string) string {
 		if (ch >= 0x21 && ch <= 0x7E) || ch == ' ' || ch == '\t' {
 			result.WriteRune(ch)
 		} else {
-			result.WriteString(fmt.Sprintf("%%%02X", ch))
+			fmt.Fprintf(&result, "%%%02X", ch)
 		}
 	}
 
@@ -554,7 +556,7 @@ func setServiceDataGroups(idTokenClaims map[string]any, conf Config, kong Kong) 
 
 	if ok {
 		switch val := groupsValue.(type) {
-		case []interface{}:
+		case []any:
 			for _, group := range val {
 				if groupStr, ok := group.(string); ok {
 					authenticatedGroups = appendIfSafeGroupStr(kong, authenticatedGroups, groupStr)

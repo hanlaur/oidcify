@@ -98,8 +98,8 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 	for numOfGroups, expectedNumOfCookies := range numOfGroupsToCookies {
 		testName := fmt.Sprintf("Successful auth with %v groups", numOfGroups)
 		t.Run(testName, func(t *testing.T) {
-			groups := []string{}
-			groupsAny := make([]any, 0)
+			groups := make([]string, 0, numOfGroups)
+			groupsAny := make([]any, 0, numOfGroups)
 
 			for groupIdx := range numOfGroups {
 				groupName := fmt.Sprintf("groupname%v", groupIdx)
@@ -217,6 +217,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 				require.NoError(t, err)
 
 				var idTokenClaims map[string]any
+
 				err = json.Unmarshal(decodedBytes, &idTokenClaims)
 				require.NoError(t, err)
 
@@ -234,6 +235,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 				require.NoError(t, err)
 
 				var userInfoClaims map[string]any
+
 				err = json.Unmarshal(decodedBytes, &userInfoClaims)
 				require.NoError(t, err)
 
@@ -267,6 +269,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 
 			mockKongLogout.EXPECT().ResponseAddHeader("Set-Cookie", mock.AnythingOfType("string")).Run(func(_, v string) {
 				assert.Regexp(t, "^OIDCSESSION[0-9]=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax$", v)
+
 				deletedCookieCount++
 			}).Return(nil)
 
@@ -610,6 +613,7 @@ func TestStaticProviderConfig(t *testing.T) {
 	pluginConfig, ok := New().(*Config)
 	assert.True(t, ok)
 
+	//nolint:gosec // Test-only static provider URLs are not credentials.
 	providerConfig := ProviderConfig{
 		AuthURL:    "https://staticprovider/auth",
 		TokenURL:   "https://staticprovider/token",
@@ -649,6 +653,7 @@ func TestLoadCustomCAs(t *testing.T) {
 	mockKong := NewMockKong(t)
 	ignoreLogCalls(mockKong)
 
+	//nolint:gosec // Test-only static provider URLs are not credentials.
 	providerConfig := ProviderConfig{
 		AuthURL:    "https://staticprovider/auth",
 		TokenURL:   "https://staticprovider/token",
