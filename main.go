@@ -565,7 +565,13 @@ func setServiceDataGroups(idTokenClaims map[string]any, conf Config, kong Kong) 
 				}
 			}
 		case string:
-			authenticatedGroups = appendIfSafeGroupStr(kong, authenticatedGroups, val)
+			// OAuth2 'scope' claims are typically space-separated strings.
+			// We split them by space to evaluate and append each scope/group individually.
+			for _, groupStr := range strings.Split(val, " ") {
+				if groupStr != "" {
+					authenticatedGroups = appendIfSafeGroupStr(kong, authenticatedGroups, groupStr)
+				}
+			}
 		default:
 			kong.LogWarn(fmt.Sprintf("Unable to process groups claim value: %v", groupsValue))
 		}
@@ -653,9 +659,10 @@ func verifyIDTokenCommon(idToken *oidc.IDToken) error {
 		return errors.New("token does not contain sub claim")
 	}
 
-	// Currently limit implementation to single-audience tokens
-	if len(idToken.Audience) != 1 {
-		return errors.New("token does not contain exactly one audience")
+	// Some providers (like AWS Cognito) omit the audience claim in M2M access tokens.
+	// We allow 0 or 1 audience, rejecting only multiple audiences for now.
+	if len(idToken.Audience) > 1 {
+		return errors.New("token contains multiple audiences, which is currently not supported")
 	}
 
 	if idToken.IssuedAt.IsZero() {
@@ -1033,25 +1040,30 @@ func authBearerToken(kong Kong, conf Config, oidcProvider *OIDCProvider) (bool, 
 		return false, nil
 	}
 
-	foundAllowedAud := false
-
-	for _, allowedAud := range conf.BearerJWTAllowedAuds {
-		if slices.Contains(idToken.Audience, allowedAud) {
-			foundAllowedAud = true
-		}
-	}
-
-	if !foundAllowedAud {
-		kong.LogWarn("Bearer JWT token did not contain any of the allowed audiences")
-
-		return false, nil
-	}
-
+	// Extract claims early to access the client_id, as it might be used as a fallback for audience validation
 	var idTokenClaims map[string]any
 	if err := idToken.Claims(&idTokenClaims); err != nil {
 		return false, fmt.Errorf("extracting claims from token failed: %w", err)
 	}
 
+	clientID, _ := idTokenClaims["client_id"].(string)
+	foundAllowedAud := false
+
+	for _, allowedAud := range conf.BearerJWTAllowedAuds {
+		// Allow if wildcard "*", or if audience matches, or if client_id matches (useful for Cognito M2M tokens)
+		if allowedAud == "*" || slices.Contains(idToken.Audience, allowedAud) || (clientID != "" && allowedAud == clientID) {
+			foundAllowedAud = true
+			break
+		}
+	}
+
+	if !foundAllowedAud {
+		kong.LogWarn("Bearer JWT token did not contain any of the allowed audiences or client_id")
+
+		return false, nil
+	}
+
+	// Pass the already extracted claims to setServiceData
 	err = setServiceData(idTokenClaims, nil, conf, kong)
 	if err != nil {
 		return false, fmt.Errorf("error setting service data: %w", err)
