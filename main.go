@@ -548,33 +548,49 @@ func appendIfSafeGroupStr(kong Kong, groups []any, groupStr string) []any {
 	return groups
 }
 
-// Sets groups in Kong context shared variable based on ID token claim so that Kong ACL plugin can use them.
+// extractGroupsFromSlice processes a slice of any and extracts string groups.
+func extractGroupsFromSlice(val []any, kong Kong) []any {
+	var groups []any
+	for _, group := range val {
+		if groupStr, ok := group.(string); ok {
+			groups = appendIfSafeGroupStr(kong, groups, groupStr)
+		} else {
+			kong.LogWarn(fmt.Sprintf("Skipping group: Unable to convert group to string: %v", group))
+		}
+	}
+	return groups
+}
+
+// extractGroupsFromString processes a space-separated string to extract groups.
+func extractGroupsFromString(val string, kong Kong) []any {
+	var groups []any
+	for _, groupStr := range strings.Split(val, " ") {
+		if groupStr != "" {
+			groups = appendIfSafeGroupStr(kong, groups, groupStr)
+		}
+	}
+	return groups
+}
+
+// extractGroups routes the claim value to the appropriate extraction function based on its type.
+func extractGroups(groupsValue any, kong Kong) []any {
+	switch val := groupsValue.(type) {
+	case []any:
+		return extractGroupsFromSlice(val, kong)
+	case string:
+		return extractGroupsFromString(val, kong)
+	default:
+		kong.LogWarn(fmt.Sprintf("Unable to process groups claim value: %v", groupsValue))
+		return []any{}
+	}
+}
+
+// setServiceDataGroups sets groups in Kong context shared variable based on ID token claim so that Kong ACL plugin can use them.
 func setServiceDataGroups(idTokenClaims map[string]any, conf Config, kong Kong) error {
 	authenticatedGroups := make([]any, 0)
 
-	groupsValue, ok := idTokenClaims[conf.GroupsClaim]
-
-	if ok {
-		switch val := groupsValue.(type) {
-		case []any:
-			for _, group := range val {
-				if groupStr, ok := group.(string); ok {
-					authenticatedGroups = appendIfSafeGroupStr(kong, authenticatedGroups, groupStr)
-				} else {
-					kong.LogWarn(fmt.Sprintf("Skipping group: Unable to convert group to string: %v", group))
-				}
-			}
-		case string:
-			// OAuth2 'scope' claims are typically space-separated strings.
-			// We split them by space to evaluate and append each scope/group individually.
-			for _, groupStr := range strings.Split(val, " ") {
-				if groupStr != "" {
-					authenticatedGroups = appendIfSafeGroupStr(kong, authenticatedGroups, groupStr)
-				}
-			}
-		default:
-			kong.LogWarn(fmt.Sprintf("Unable to process groups claim value: %v", groupsValue))
-		}
+	if groupsValue, ok := idTokenClaims[conf.GroupsClaim]; ok {
+		authenticatedGroups = extractGroups(groupsValue, kong)
 	} else {
 		kong.LogDebug("No groups claim within ID token claims")
 	}
