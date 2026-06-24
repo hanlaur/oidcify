@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
       
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Extract Go version from go.mod
         id: extract-go-version
@@ -56,7 +56,7 @@ jobs:
     permissions:
       checks: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Extract Go version from go.mod
         id: extract-go-version
         run: |
