@@ -548,27 +548,49 @@ func appendIfSafeGroupStr(kong Kong, groups []any, groupStr string) []any {
 	return groups
 }
 
-// Sets groups in Kong context shared variable based on ID token claim so that Kong ACL plugin can use them.
+// extractGroupsFromSlice processes a slice of any and extracts string groups.
+func extractGroupsFromSlice(val []any, kong Kong) []any {
+	var groups []any
+	for _, group := range val {
+		if groupStr, ok := group.(string); ok {
+			groups = appendIfSafeGroupStr(kong, groups, groupStr)
+		} else {
+			kong.LogWarn(fmt.Sprintf("Skipping group: Unable to convert group to string: %v", group))
+		}
+	}
+	return groups
+}
+
+// extractGroupsFromString processes a space-separated string to extract groups.
+func extractGroupsFromString(val string, kong Kong) []any {
+	var groups []any
+	for _, groupStr := range strings.Split(val, " ") {
+		if groupStr != "" {
+			groups = appendIfSafeGroupStr(kong, groups, groupStr)
+		}
+	}
+	return groups
+}
+
+// extractGroups routes the claim value to the appropriate extraction function based on its type.
+func extractGroups(groupsValue any, kong Kong) []any {
+	switch val := groupsValue.(type) {
+	case []any:
+		return extractGroupsFromSlice(val, kong)
+	case string:
+		return extractGroupsFromString(val, kong)
+	default:
+		kong.LogWarn(fmt.Sprintf("Unable to process groups claim value: %v", groupsValue))
+		return []any{}
+	}
+}
+
+// setServiceDataGroups sets groups in Kong context shared variable based on ID token claim so that Kong ACL plugin can use them.
 func setServiceDataGroups(idTokenClaims map[string]any, conf Config, kong Kong) error {
 	authenticatedGroups := make([]any, 0)
 
-	groupsValue, ok := idTokenClaims[conf.GroupsClaim]
-
-	if ok {
-		switch val := groupsValue.(type) {
-		case []any:
-			for _, group := range val {
-				if groupStr, ok := group.(string); ok {
-					authenticatedGroups = appendIfSafeGroupStr(kong, authenticatedGroups, groupStr)
-				} else {
-					kong.LogWarn(fmt.Sprintf("Skipping group: Unable to convert group to string: %v", group))
-				}
-			}
-		case string:
-			authenticatedGroups = appendIfSafeGroupStr(kong, authenticatedGroups, val)
-		default:
-			kong.LogWarn(fmt.Sprintf("Unable to process groups claim value: %v", groupsValue))
-		}
+	if groupsValue, ok := idTokenClaims[conf.GroupsClaim]; ok {
+		authenticatedGroups = extractGroups(groupsValue, kong)
 	} else {
 		kong.LogDebug("No groups claim within ID token claims")
 	}
@@ -653,9 +675,10 @@ func verifyIDTokenCommon(idToken *oidc.IDToken) error {
 		return errors.New("token does not contain sub claim")
 	}
 
-	// Currently limit implementation to single-audience tokens
-	if len(idToken.Audience) != 1 {
-		return errors.New("token does not contain exactly one audience")
+	// Some providers (like AWS Cognito) omit the audience claim in M2M access tokens.
+	// We allow 0 or 1 audience, rejecting only multiple audiences for now.
+	if len(idToken.Audience) > 1 {
+		return errors.New("token contains multiple audiences, which is currently not supported")
 	}
 
 	if idToken.IssuedAt.IsZero() {
@@ -1033,25 +1056,30 @@ func authBearerToken(kong Kong, conf Config, oidcProvider *OIDCProvider) (bool, 
 		return false, nil
 	}
 
-	foundAllowedAud := false
-
-	for _, allowedAud := range conf.BearerJWTAllowedAuds {
-		if slices.Contains(idToken.Audience, allowedAud) {
-			foundAllowedAud = true
-		}
-	}
-
-	if !foundAllowedAud {
-		kong.LogWarn("Bearer JWT token did not contain any of the allowed audiences")
-
-		return false, nil
-	}
-
+	// Extract claims early to access the client_id, as it might be used as a fallback for audience validation
 	var idTokenClaims map[string]any
 	if err := idToken.Claims(&idTokenClaims); err != nil {
 		return false, fmt.Errorf("extracting claims from token failed: %w", err)
 	}
 
+	clientID, _ := idTokenClaims["client_id"].(string)
+	foundAllowedAud := false
+
+	for _, allowedAud := range conf.BearerJWTAllowedAuds {
+		// Allow if wildcard "*", or if audience matches, or if client_id matches (useful for Cognito M2M tokens)
+		if allowedAud == "*" || slices.Contains(idToken.Audience, allowedAud) || (clientID != "" && allowedAud == clientID) {
+			foundAllowedAud = true
+			break
+		}
+	}
+
+	if !foundAllowedAud {
+		kong.LogWarn("Bearer JWT token did not contain any of the allowed audiences or client_id")
+
+		return false, nil
+	}
+
+	// Pass the already extracted claims to setServiceData
 	err = setServiceData(idTokenClaims, nil, conf, kong)
 	if err != nil {
 		return false, fmt.Errorf("error setting service data: %w", err)
