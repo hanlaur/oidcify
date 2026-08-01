@@ -805,3 +805,98 @@ func generateTestTLSArtifacts(t *testing.T, serverIP string) (caPEM, serverCertP
 
 	return caPEM, serverCertPEM, serverKeyPEM
 }
+
+func TestBearerJWTWildcardAudience(t *testing.T) {
+	mockOidcServer, _ := mockoidc.Run()
+	defer mockOidcServer.Shutdown() //nolint:errcheck
+
+	cfg := mockOidcServer.Config()
+
+	pluginConfig, ok := New().(*Config)
+	assert.True(t, ok)
+
+	pluginConfig.Issuer = cfg.Issuer
+	pluginConfig.ClientID = cfg.ClientID
+	pluginConfig.ClientSecret = cfg.ClientSecret
+	pluginConfig.RedirectURI = "http://localhost/cb"
+	pluginConfig.Scopes = []string{"openid", "profile", "email"}
+	// Explicitly configure the wildcard audience
+	pluginConfig.BearerJWTAllowedAuds = []string{"*"}
+	pluginConfig.ConsumerName = "oidcuser"
+	pluginConfig.HeadersFromClaims = map[string]string{
+		"X-Oidc-Email": "email",
+	}
+
+	user := &mockoidc.MockUser{
+		Subject:       "1234567890",
+		Email:         "wildcard.user@example.com",
+		EmailVerified: true,
+	}
+	mockOidcServer.QueueUser(user)
+
+	provider, err := oidc.NewProvider(t.Context(), cfg.Issuer)
+	require.NoError(t, err)
+
+	oauth2Config := oauth2.Config{
+		ClientID:     cfg.ClientID,
+		ClientSecret: cfg.ClientSecret,
+		RedirectURL:  "http://localhost/cb",
+		Endpoint:     provider.Endpoint(),
+		Scopes:       pluginConfig.Scopes,
+	}
+
+	state := "state5678"
+	pkceVerifier := "pkce5678"
+
+	authCodeURL := oauth2Config.AuthCodeURL(state,
+		oauth2.S256ChallengeOption(pkceVerifier))
+
+	httpClient := &http.Client{
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	resp, err := httpClient.Get(authCodeURL) //nolint:noctx
+	require.NoError(t, err)
+
+	defer resp.Body.Close()
+
+	cbLocationHeader := resp.Header.Get("Location")
+	parsedCBLoc, err := url.Parse(cbLocationHeader)
+	require.NoError(t, err)
+
+	code := parsedCBLoc.Query().Get("code")
+
+	token, err := oauth2Config.Exchange(t.Context(), code,
+		oauth2.VerifierOption(pkceVerifier))
+	require.NoError(t, err)
+
+	rawIDToken, okToken := token.Extra("id_token").(string)
+	if !okToken {
+		t.Fatal("no id_token in token response")
+	}
+
+	mockKong := NewMockKong(t)
+
+	ignoreLogCalls(mockKong)
+	// Simulate a request with the Authorization header containing the JWT token
+	mockKong.EXPECT().RequestGetHeader("authorization").Return("Bearer "+rawIDToken, nil)
+	mockKong.EXPECT().CtxSetShared("authenticated_groups", []any{}).Return(nil)
+	mockKong.EXPECT().ServiceRequestSetHeader("X-Oidc-Email", "wildcard.user@example.com").Return(nil)
+
+	consumer := entities.Consumer{
+		Id:       "ffe30af5-d167-519a-8bdc-2fa89a3aa280",
+		Username: "oidcuser",
+	}
+	mockKong.EXPECT().ClientLoadConsumer("oidcuser", true).Return(consumer, nil)
+	mockKong.EXPECT().ClientAuthenticate(&consumer, &client.AuthenticatedCredential{
+		Id:         "1234567890",
+		ConsumerId: consumer.Id,
+	}).Return(nil)
+	mockKong.EXPECT().ServiceRequestSetHeader("X-Consumer-Id", consumer.Id).Return(nil)
+	mockKong.EXPECT().ServiceRequestSetHeader("X-Consumer-Username", consumer.Username).Return(nil)
+	mockKong.EXPECT().ServiceRequestSetHeader("X-Credential-Identifier", "1234567890").Return(nil)
+	mockKong.EXPECT().ServiceRequestClearHeader("X-Anonymous-Consumer").Return(nil)
+	mockKong.EXPECT().ServiceRequestClearHeader("X-Consumer-Custom-Id").Return(nil)
+
+	// Execution should not panic and should validate authentication despite strict audience missing
+	pluginConfig.AccessWithInterface(mockKong)
+}

@@ -21,7 +21,7 @@ Kong 3.8.0 or later. Do not use the plugin with older Kong versions.
 
 Download the release archive from [Releases](https://github.com/hanlaur/oidcify/releases) page.
 
-Place binary `oidcify` in `/usr/local/bin/`. 
+Place binary `oidcify` in `/usr/local/bin/`.
 
 Set following environment variables before starting Kong:
 
@@ -54,7 +54,7 @@ Plugin supports the following configuration inputs:
 | `scopes`                   | The scopes to request in the authorization code flow. You must include `openid` as one of the values. Example: `["openid", "profile", "email", "groups"]`                                                                          | `["openid"]`             |          |
 | `use_pkce`                 | Use PKCE in the Authorization Code Flow. It is recommended to always use PKCE, if the OIDC provider supports it.                                                                                                                   | `true`                   |          |
 | `use_userinfo`             | Defines whether to call userinfo endpoint to collect additional claims for the purposes of `headers_from_claims` functionality.                                                                                                    | `false`                  |          |
-| `bearer_jwt_allowed_auds`  | Allowed `aud` values when validating Authorization header Bearer token. By default Bearer JWT authentication is disabled. The `aud` may be same or different from the authorization code flow Client ID.                           | `[]` (no allowed ids)    |          |
+| `bearer_jwt_allowed_auds`  | Allowed values when validating Authorization header Bearer token. Matches against the `aud` claim, or the `client_id` claim (useful for AWS Cognito M2M tokens that omit the `aud` claim). Supports the wildcard `"*"` to allow any valid token signed by the IdP. By default, Bearer JWT authentication is disabled. | `[]` (no allowed ids)    |          |
 | `bearer_jwt_allowed_algs`  | Allowed signing algorithms when validating Authorization header Bearer token.                                                                                                                                                      | `["RS256"]`              |          |
 | `cookie_name`              | Name prefix for OIDC session cookie. Sequence number will be appended to support cookie splitting.                                                                                                                                 | `OIDCSESSION`            |          |
 | `session_lifetime_seconds` | Session lifetime in seconds. By default, session life time follows ID token expiry. If set, session expires based on ID token `iat` plus the configured lifetime value. Applies to auth code flow only.                            | `0` (use ID token value) |          |
