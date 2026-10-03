@@ -35,7 +35,7 @@ install-tooling:
 	go install github.com/goreleaser/goreleaser/v2@latest
 	go install github.com/google/go-licenses@latest
 	go install github.com/vektra/mockery/v2@latest
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin
+	curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $$(go env GOPATH)/bin
 
 .PHONY: release-test
 release-test:
