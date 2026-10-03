@@ -5,7 +5,7 @@ go 1.26.8
 require (
 	github.com/Kong/go-pdk v0.11.2
 	github.com/coreos/go-oidc/v3 v3.21.0
-	github.com/go-playground/validator/v10 v10.30.4
+	github.com/go-playground/validator/v10 v10.30.5
 	github.com/gorilla/securecookie v1.1.2
 	github.com/jellydator/ttlcache/v3 v3.4.1
 	github.com/stretchr/testify v1.12.1
@@ -22,8 +22,8 @@ require (
 require (
 	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.5 // indirect
-	github.com/go-playground/locales v0.14.1 // indirect
-	github.com/go-playground/universal-translator v0.18.1 // indirect
+	github.com/go-playground/locales v0.14.2 // indirect
+	github.com/go-playground/universal-translator v0.18.2 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/oauth2-proxy/mockoidc v0.0.0-20240214162133-caebfff84d25
 	github.com/ugorji/go/codec v1.3.2 // indirect
