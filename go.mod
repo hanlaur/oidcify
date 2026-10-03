@@ -1,6 +1,6 @@
 module github.com/hanlaur/oidcify
 
-go 1.26.8
+go 1.27.1
 
 require (
 	github.com/Kong/go-pdk v0.11.2
@@ -8,25 +8,22 @@ require (
 	github.com/go-playground/validator/v10 v10.30.5
 	github.com/gorilla/securecookie v1.1.2
 	github.com/jellydator/ttlcache/v3 v3.4.1
+	github.com/oauth2-proxy/mockoidc v0.0.0-20240214162133-caebfff84d25
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/oauth2 v0.37.0
 )
 
 require (
-	github.com/go-jose/go-jose/v3 v3.0.5 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
-	github.com/stretchr/objx v0.5.3 // indirect
-	go.yaml.in/yaml/v3 v3.0.5 // indirect
-)
-
-require (
 	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.5 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.5 // indirect
 	github.com/go-playground/locales v0.14.2 // indirect
 	github.com/go-playground/universal-translator v0.18.2 // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
-	github.com/oauth2-proxy/mockoidc v0.0.0-20240214162133-caebfff84d25
+	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/ugorji/go/codec v1.3.2 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
