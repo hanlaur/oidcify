@@ -33,6 +33,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	testRedirectURI = "http://localhost/cb"
+	testEmailClaim  = "email"
+	testEmailHeader = "X-Oidc-Email"
+	testCookieHdr   = "cookie"
+	testConsumerID  = "ffe30af5-d167-519a-8bdc-2fa89a3aa280"
+	testGroupReader = "readers"
+)
+
 type httpBinResponse struct {
 	Headers map[string]string `json:"headers"`
 }
@@ -56,12 +65,12 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 	pluginConfig.Issuer = cfg.Issuer
 	pluginConfig.ClientID = cfg.ClientID
 	pluginConfig.ClientSecret = cfg.ClientSecret
-	pluginConfig.RedirectURI = "http://localhost/cb"
-	pluginConfig.Scopes = []string{"openid", "profile", "email", "groups"}
+	pluginConfig.RedirectURI = testRedirectURI
+	pluginConfig.Scopes = []string{"openid", "profile", testEmailClaim, "groups"}
 	pluginConfig.UseUserInfo = true
 	pluginConfig.ConsumerName = "oidcuser" //nolint:goconst
 	pluginConfig.HeadersFromClaims = map[string]string{
-		"X-Oidc-Email":          "email",
+		testEmailHeader:         testEmailClaim,
 		"X-Oidc-Email-Verified": "email_verified",
 		"X-Oidc-Sub":            "sub",
 		"X-Oidc-Pref-User":      "preferred_username",
@@ -124,7 +133,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 			ignoreLogCalls(mockKong)
 
 			mockKong.On("RequestGetHeaders", -1).Return(map[string][]string{
-				"cookie": {"OIDCSESSION0=invalid_value_that_cannot_be_decoded"},
+				testCookieHdr: {"OIDCSESSION0=invalid_value_that_cannot_be_decoded"},
 			}, nil)
 			mockKong.On("RequestGetPathWithQuery").Return("/secretplace?abcd=1234", nil)
 
@@ -182,7 +191,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 			oidcCookies = nil
 
 			mockKongCallback.EXPECT().RequestGetHeaders(-1).Return(map[string][]string{
-				"cookie": requestCookies,
+				testCookieHdr: requestCookies,
 			}, nil)
 			mockKongCallback.EXPECT().RequestGetPathWithQuery().Return(parsedCBLoc.Path, nil)
 			mockKongCallback.EXPECT().RequestGetQueryArg("code").Return(parsedCBLoc.Query().Get("code"), nil)
@@ -203,10 +212,10 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 
 			requestCookies = validateAndConvertOidcCookies(t, oidcCookies)
 			mockKongSecure.EXPECT().RequestGetHeaders(-1).Return(map[string][]string{
-				"cookie": requestCookies,
+				testCookieHdr: requestCookies,
 			}, nil)
 			mockKongSecure.EXPECT().CtxSetShared("authenticated_groups", groupsAny).Return(nil)
-			mockKongSecure.EXPECT().ServiceRequestSetHeader("X-Oidc-Email", "jane.doe@example.com").Return(nil)
+			mockKongSecure.EXPECT().ServiceRequestSetHeader(testEmailHeader, "jane.doe@example.com").Return(nil)
 			mockKongSecure.EXPECT().ServiceRequestSetHeader("X-Oidc-Email-Verified", "true").Return(nil)
 			mockKongSecure.EXPECT().ServiceRequestSetHeader("X-Oidc-Sub", "1234567890").Return(nil)
 			mockKongSecure.EXPECT().ServiceRequestClearHeader("X-Oidc-NotInToken").Return(nil)
@@ -221,7 +230,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 				err = json.Unmarshal(decodedBytes, &idTokenClaims)
 				require.NoError(t, err)
 
-				assert.Equal(t, "jane.doe@example.com", idTokenClaims["email"])
+				assert.Equal(t, "jane.doe@example.com", idTokenClaims[testEmailClaim])
 
 				if numOfGroups > 0 {
 					groups, ok := idTokenClaims["groups"].([]any)
@@ -239,11 +248,11 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 				err = json.Unmarshal(decodedBytes, &userInfoClaims)
 				require.NoError(t, err)
 
-				assert.Equal(t, "jane.doe@example.com", userInfoClaims["email"])
+				assert.Equal(t, "jane.doe@example.com", userInfoClaims[testEmailClaim])
 			}).Return(nil)
 
 			consumer := entities.Consumer{
-				Id:       "ffe30af5-d167-519a-8bdc-2fa89a3aa280",
+				Id:       testConsumerID,
 				Username: "oidcuser",
 			}
 			mockKongSecure.EXPECT().ClientLoadConsumer("oidcuser", true).Return(consumer, nil)
@@ -262,7 +271,7 @@ func TestOIDCPlugin(t *testing.T) { //nolint:funlen
 			mockKongLogout := NewMockKong(t)
 			mockKongLogout.EXPECT().RequestGetPathWithQuery().Return("/logout", nil)
 			mockKongLogout.EXPECT().RequestGetHeaders(-1).Return(map[string][]string{
-				"cookie": requestCookies,
+				testCookieHdr: requestCookies,
 			}, nil)
 
 			deletedCookieCount := 0
@@ -290,7 +299,7 @@ func validateAndConvertOidcCookies(t *testing.T, oidcCookies []string) []string 
 
 	for _, oidcCookie := range oidcCookies {
 		assert.Regexp(t, "^OIDCSESSION[0-9]=.*; Path=/; HttpOnly; Secure; SameSite=Lax$", oidcCookie)
-		requestCookie := strings.Split(oidcCookie, ";")[0]
+		requestCookie, _, _ := strings.Cut(oidcCookie, ";")
 		requestCookies = append(requestCookies, requestCookie)
 	}
 
@@ -310,15 +319,15 @@ func TestBearerJWTOKAndExpired(t *testing.T) {
 	pluginConfig.Issuer = cfg.Issuer
 	pluginConfig.ClientID = cfg.ClientID
 	pluginConfig.ClientSecret = cfg.ClientSecret
-	pluginConfig.RedirectURI = "http://localhost/cb"
-	pluginConfig.Scopes = []string{"openid", "profile", "email", "groups"}
+	pluginConfig.RedirectURI = testRedirectURI
+	pluginConfig.Scopes = []string{"openid", "profile", testEmailClaim, "groups"}
 	pluginConfig.BearerJWTAllowedAuds = []string{cfg.ClientID}
 	pluginConfig.CookieBlockKeyHex = "08ea7af807955a8219fba9efc1c1c9b62515ade6c48a936b6b136a802300b469"
 	pluginConfig.CookieHashKeyHex = "ff74aab316f7070e0fb2288cb5fd456369d0f693927ec2b079b5f71702020df6"
 	pluginConfig.RedirectUnauthenticated = false
 	pluginConfig.ConsumerName = "oidcuser"
 	pluginConfig.HeadersFromClaims = map[string]string{
-		"X-Oidc-Email": "email",
+		testEmailHeader: testEmailClaim,
 	}
 
 	user := &mockoidc.MockUser{
@@ -327,7 +336,7 @@ func TestBearerJWTOKAndExpired(t *testing.T) {
 		PreferredUsername: "mönkijä",
 		Phone:             "555-987-6543",
 		Address:           "123 Main Street",
-		Groups:            []string{"readers", "writers", "unsafe\ngroup", "unsafe group äöå"},
+		Groups:            []string{testGroupReader, "writers", "unsafe\ngroup", "unsafe group äöå"},
 		EmailVerified:     true,
 	}
 	mockOidcServer.QueueUser(user)
@@ -338,7 +347,7 @@ func TestBearerJWTOKAndExpired(t *testing.T) {
 	oauth2Config := oauth2.Config{
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
-		RedirectURL:  "http://localhost/cb",
+		RedirectURL:  testRedirectURI,
 		Endpoint:     provider.Endpoint(),
 		Scopes:       pluginConfig.Scopes,
 	}
@@ -376,11 +385,11 @@ func TestBearerJWTOKAndExpired(t *testing.T) {
 
 	ignoreLogCalls(mockKong)
 	mockKong.EXPECT().RequestGetHeader("authorization").Return("Bearer "+rawIDToken, nil)
-	mockKong.EXPECT().CtxSetShared("authenticated_groups", []any{"readers", "writers"}).Return(nil)
-	mockKong.EXPECT().ServiceRequestSetHeader("X-Oidc-Email", "jane.doe@example.com").Return(nil)
+	mockKong.EXPECT().CtxSetShared("authenticated_groups", []any{testGroupReader, "writers"}).Return(nil)
+	mockKong.EXPECT().ServiceRequestSetHeader(testEmailHeader, "jane.doe@example.com").Return(nil)
 
 	consumer := entities.Consumer{
-		Id:       "ffe30af5-d167-519a-8bdc-2fa89a3aa280",
+		Id:       testConsumerID,
 		Username: "oidcuser",
 	}
 	mockKong.EXPECT().ClientLoadConsumer("oidcuser", true).Return(consumer, nil)
@@ -486,13 +495,13 @@ func TestRealKongRedirectAndACL(t *testing.T) {
 	}
 
 	for expectedHeader, expectedValue := range map[string]string{
-		"X-Oidc-Email":            "user@mock.internal",
+		testEmailHeader:           "user@mock.internal",
 		"X-Oidc-Email-Verified":   "true",
 		"X-Oidc-Sub":              "sub12345678",
 		"X-Oidc-Dummy-Int":        "223344",
-		"X-Authenticated-Groups":  "readers",
+		"X-Authenticated-Groups":  testGroupReader,
 		"X-Credential-Identifier": "sub12345678",
-		"X-Consumer-Id":           "ffe30af5-d167-519a-8bdc-2fa89a3aa280",
+		"X-Consumer-Id":           testConsumerID,
 		"X-Consumer-Username":     "oidcuser",
 	} {
 		if httpBinResponse.Headers[expectedHeader] != expectedValue {
@@ -546,7 +555,7 @@ func TestRealKongRedirectAndACL(t *testing.T) {
 
 	for expectedHeader, expectedValue := range map[string]string{
 		"X-Consumer-Groups":      "consumerreaders",
-		"X-Authenticated-Groups": "readers",
+		"X-Authenticated-Groups": testGroupReader,
 	} {
 		if httpBinResponse.Headers[expectedHeader] != expectedValue {
 			t.Fatalf("unexpected %v: %v", expectedHeader, httpBinResponse.Headers[expectedHeader])
