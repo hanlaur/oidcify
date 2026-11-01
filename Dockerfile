@@ -1,4 +1,4 @@
-FROM kong:3.9.3
+FROM kong:3.9.4
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/oidcify /usr/local/bin/
 COPY README.md NOTICE LICENSE /usr/local/share/doc/oidcify/
